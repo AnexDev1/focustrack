@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:focustrack/screens/enhanced_dashboard_screen.dart';
+import 'package:focustrack/screens/dashboard_screen.dart';
 import 'package:focustrack/providers/database_provider.dart';
 import 'package:focustrack/theme/app_theme.dart';
 
@@ -21,7 +21,7 @@ class MainApp extends ConsumerWidget {
       title: 'FocusTrack - Professional App Usage Tracker',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
-      home: const EnhancedDashboardScreen(),
+      home: const DashboardScreen(),
     );
   }
 }
