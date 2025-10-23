@@ -17,23 +17,13 @@ class EnhancedDashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _EnhancedDashboardScreenState
-    extends ConsumerState<EnhancedDashboardScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
+    extends ConsumerState<EnhancedDashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(appUsageServiceProvider).startTracking();
     });
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 
   String _formatDuration(int milliseconds) {
@@ -61,162 +51,65 @@ class _EnhancedDashboardScreenState
     );
 
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          // Custom App Bar with Glassmorphic Effect
-          SliverAppBar(
-            expandedHeight: 120,
-            floating: false,
-            pinned: true,
-            backgroundColor: Colors.transparent,
-            flexibleSpace: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppTheme.primaryColor.withOpacity(0.2),
-                    AppTheme.secondaryColor.withOpacity(0.1),
+      backgroundColor: AppTheme.backgroundColor,
+      appBar: AppBar(
+        title: const Text('FocusTrack'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => _showSettingsDialog(context),
+          ),
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: sessionsAsync.when(
+          data: (sessions) => Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Left Column - Stats & History
+              Expanded(
+                flex: 2,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Current Activity
+                    _buildCurrentActivityCard(currentApp, isTracking),
+                    const SizedBox(height: 20),
+
+                    // Quick Stats
+                    _buildQuickStats(sessions),
+                    const SizedBox(height: 20),
+
+                    // Session History
+                    Expanded(child: _buildSessionHistory(sessions)),
                   ],
                 ),
               ),
-              child: FlexibleSpaceBar(
-                title: const Text(
-                  'FocusTrack',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
+              const SizedBox(width: 24),
+
+              // Right Column - App Lists & Chart
+              Expanded(
+                flex: 3,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Usage Chart
+                    _buildUsageChart(),
+                    const SizedBox(height: 20),
+
+                    // Top Apps List
+                    Expanded(child: _buildTopAppsList(sessions)),
+                  ],
                 ),
-                centerTitle: false,
-                titlePadding: const EdgeInsets.only(left: 24, bottom: 16),
               ),
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.settings_outlined),
-                onPressed: () => _showSettingsDialog(context),
-              ),
-              const SizedBox(width: 8),
             ],
           ),
-
-          // Content
-          SliverPadding(
-            padding: const EdgeInsets.all(24),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                // Current Activity Card
-                _buildCurrentActivityCard(currentApp, isTracking),
-                const SizedBox(height: 24),
-
-                // Stats Overview
-                sessionsAsync.when(
-                  data: (sessions) {
-                    final totalTime = sessions.fold<int>(
-                      0,
-                      (sum, session) => sum + session.durationMs,
-                    );
-
-                    return Column(
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: StatCard(
-                                title: 'Today',
-                                value: _formatDuration(totalTime),
-                                icon: Icons.access_time_rounded,
-                                color: AppTheme.primaryColor,
-                                subtitle: 'Total screen time',
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: StatCard(
-                                title: 'Apps',
-                                value: sessions
-                                    .map((s) => s.appName)
-                                    .toSet()
-                                    .length
-                                    .toString(),
-                                icon: Icons.apps_rounded,
-                                color: AppTheme.accentColor,
-                                subtitle: 'Different apps used',
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: StatCard(
-                                title: 'Sessions',
-                                value: sessions.length.toString(),
-                                icon: Icons.splitscreen_rounded,
-                                color: AppTheme.successColor,
-                                subtitle: 'App switches',
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: StatCard(
-                                title: 'Focus',
-                                value: _calculateFocusScore(sessions),
-                                icon: Icons.psychology_rounded,
-                                color: AppTheme.warningColor,
-                                subtitle: 'Productivity score',
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    );
-                  },
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (error, stack) => Text('Error: $error'),
-                ),
-
-                const SizedBox(height: 32),
-
-                // Tab Navigation
-                Container(
-                  decoration: AppTheme.glassmorphicDecoration,
-                  child: TabBar(
-                    controller: _tabController,
-                    indicator: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      color: AppTheme.primaryColor.withOpacity(0.2),
-                    ),
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    dividerColor: Colors.transparent,
-                    labelColor: AppTheme.primaryColor,
-                    unselectedLabelColor: AppTheme.textSecondary,
-                    tabs: const [
-                      Tab(text: 'Overview'),
-                      Tab(text: 'Analytics'),
-                      Tab(text: 'Timeline'),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Tab Content
-                SizedBox(
-                  height: MediaQuery.of(context).size.height * 0.5,
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildOverviewTab(sessionsAsync),
-                      _buildAnalyticsTab(sessionsAsync),
-                      _buildTimelineTab(sessionsAsync),
-                    ],
-                  ),
-                ),
-              ]),
-            ),
-          ),
-        ],
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stack) => Center(child: Text('Error: $error')),
+        ),
       ),
     );
   }
@@ -272,235 +165,311 @@ class _EnhancedDashboardScreenState
     );
   }
 
-  Widget _buildOverviewTab(AsyncValue sessionsAsync) {
-    return sessionsAsync.when(
-      data: (sessions) {
-        if (sessions.isEmpty) {
-          return _buildEmptyState();
-        }
+  Widget _buildQuickStats(List sessions) {
+    final totalTime = sessions.fold<int>(
+      0,
+      (sum, session) => sum + (session.durationMs as int),
+    );
+    final appCount = sessions.map((s) => s.appName).toSet().length;
+    final focusScore = _calculateFocusScore(sessions);
 
-        final appUsageMap = <String, int>{};
-        for (var session in sessions) {
-          final current = appUsageMap[session.appName] ?? 0;
-          appUsageMap[session.appName] = current + session.durationMs as int;
-        }
-
-        final sortedApps = appUsageMap.entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value));
-
-        final totalTime = sortedApps.fold<int>(0, (sum, e) => sum + e.value);
-
-        return SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SectionHeader(
-                title: 'Usage Distribution',
-                subtitle: 'Last 24 hours',
-              ),
-              GlassCard(child: SizedBox(height: 250, child: UsageChart())),
-              const SizedBox(height: 24),
-              SectionHeader(
-                title: 'Top Applications',
-                subtitle: '${sortedApps.length} apps used',
-              ),
-              ...sortedApps.take(5).map((entry) {
-                final percentage = (entry.value / totalTime) * 100;
-                final category = AppCategoryExtension.fromAppName(entry.key);
-                final color = AppTheme.getCategoryColor(category.displayName);
-
-                return AppUsageListItem(
-                  appName: entry.key,
-                  timeSpent: _formatDuration(entry.value),
-                  percentage: percentage,
-                  color: color,
-                );
-              }),
-            ],
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Today\'s Statistics',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
           ),
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stack) => Text('Error: $error'),
+          const SizedBox(height: 16),
+          _buildStatRow(
+            'Total Time',
+            _formatDuration(totalTime),
+            Icons.access_time_rounded,
+            AppTheme.primaryColor,
+          ),
+          const SizedBox(height: 12),
+          _buildStatRow(
+            'Apps Used',
+            appCount.toString(),
+            Icons.apps_rounded,
+            AppTheme.accentColor,
+          ),
+          const SizedBox(height: 12),
+          _buildStatRow(
+            'Sessions',
+            sessions.length.toString(),
+            Icons.splitscreen_rounded,
+            AppTheme.successColor,
+          ),
+          const SizedBox(height: 12),
+          _buildStatRow(
+            'Focus Score',
+            focusScore,
+            Icons.psychology_rounded,
+            AppTheme.warningColor,
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildAnalyticsTab(AsyncValue sessionsAsync) {
-    return sessionsAsync.when(
-      data: (sessions) {
-        if (sessions.isEmpty) {
-          return _buildEmptyState();
-        }
-
-        // Group by category
-        final categoryTime = <String, int>{};
-        for (var session in sessions) {
-          final category = AppCategoryExtension.fromAppName(
-            session.appName,
-          ).displayName;
-          final current = categoryTime[category] ?? 0;
-          categoryTime[category] = current + session.durationMs as int;
-        }
-
-        final sortedCategories = categoryTime.entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value));
-
-        final totalTime = sortedCategories.fold<int>(
-          0,
-          (sum, e) => sum + e.value,
-        );
-
-        return SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SectionHeader(
-                title: 'Category Breakdown',
-                subtitle: 'Time spent by category',
-              ),
-              ...sortedCategories.map((entry) {
-                final percentage = (entry.value / totalTime) * 100;
-                final color = AppTheme.getCategoryColor(entry.key);
-
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: GlassCard(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 12,
-                              height: 12,
-                              decoration: BoxDecoration(
-                                color: color,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                entry.key,
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                            ),
-                            Text(
-                              _formatDuration(entry.value),
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(
-                                    color: color,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        AnimatedProgressBar(
-                          progress: percentage / 100,
-                          color: color,
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-            ],
+  Widget _buildStatRow(String label, String value, IconData icon, Color color) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(8),
           ),
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stack) => Text('Error: $error'),
+          child: Icon(icon, color: color, size: 18),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
+        ),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: color,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildTimelineTab(AsyncValue sessionsAsync) {
-    return sessionsAsync.when(
-      data: (sessions) {
-        if (sessions.isEmpty) {
-          return _buildEmptyState();
-        }
+  Widget _buildSessionHistory(List sessions) {
+    if (sessions.isEmpty) {
+      return _buildEmptyState();
+    }
 
-        final sortedSessions = List.from(sessions)
-          ..sort((a, b) => b.startTime.compareTo(a.startTime));
+    final sortedSessions = List.from(sessions)
+      ..sort((a, b) => b.startTime.compareTo(a.startTime));
 
-        return SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              SectionHeader(
-                title: 'Session History',
-                subtitle: '${sessions.length} sessions today',
+              Text(
+                'Recent Sessions',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
-              ...sortedSessions.map((session) {
+              const Spacer(),
+              Text(
+                '${sessions.length} total',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: ListView.separated(
+              itemCount: sortedSessions.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final session = sortedSessions[index];
                 final category = AppCategoryExtension.fromAppName(
                   session.appName,
                 );
                 final color = AppTheme.getCategoryColor(category.displayName);
 
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: GlassCard(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceColor.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border(left: BorderSide(color: color, width: 3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              session.appName,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _formatTime(session.startTime),
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        _formatDuration(session.durationMs),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: color,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUsageChart() {
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Usage Overview',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(height: 250, child: UsageChart()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopAppsList(List sessions) {
+    if (sessions.isEmpty) {
+      return _buildEmptyState();
+    }
+
+    final appUsageMap = <String, int>{};
+    for (var session in sessions) {
+      final current = appUsageMap[session.appName] ?? 0;
+      appUsageMap[session.appName] = current + session.durationMs as int;
+    }
+
+    final sortedApps = appUsageMap.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    final totalTime = sortedApps.fold<int>(0, (sum, e) => sum + e.value);
+
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Top Applications',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const Spacer(),
+              Text(
+                '${sortedApps.length} apps',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: ListView.separated(
+              itemCount: sortedApps.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final entry = sortedApps[index];
+                final percentage = (entry.value / totalTime) * 100;
+                final category = AppCategoryExtension.fromAppName(entry.key);
+                final color = AppTheme.getCategoryColor(category.displayName);
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
                         Container(
-                          width: 4,
-                          height: 50,
+                          width: 40,
+                          height: 40,
                           decoration: BoxDecoration(
-                            color: color,
-                            borderRadius: BorderRadius.circular(2),
+                            color: color.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Center(
+                            child: Text(
+                              entry.key.isNotEmpty
+                                  ? entry.key[0].toUpperCase()
+                                  : '?',
+                              style: TextStyle(
+                                color: color,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                session.appName,
-                                style: Theme.of(context).textTheme.titleMedium,
+                                entry.key,
+                                style: Theme.of(context).textTheme.bodyMedium,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '${_formatTime(session.startTime)} • ${_formatDuration(session.durationMs)}',
-                                style: Theme.of(context).textTheme.bodySmall,
+                                category.displayName,
+                                style: Theme.of(
+                                  context,
+                                ).textTheme.bodySmall?.copyWith(color: color),
                               ),
                             ],
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: color.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            category.displayName,
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(
-                                  color: color,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                          ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              _formatDuration(entry.value),
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${percentage.toStringAsFixed(1)}%',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ),
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: percentage / 100,
+                        backgroundColor: color.withOpacity(0.2),
+                        valueColor: AlwaysStoppedAnimation<Color>(color),
+                        minHeight: 6,
+                      ),
+                    ),
+                  ],
                 );
-              }),
-            ],
+              },
+            ),
           ),
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stack) => Text('Error: $error'),
+        ],
+      ),
     );
   }
 
@@ -511,15 +480,15 @@ class _EnhancedDashboardScreenState
         children: [
           Icon(
             Icons.insert_chart_outlined_rounded,
-            size: 80,
+            size: 64,
             color: AppTheme.textTertiary,
           ),
           const SizedBox(height: 16),
-          Text('No data yet', style: Theme.of(context).textTheme.headlineSmall),
+          Text('No data yet', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           Text(
-            'Start using apps to see your usage statistics',
-            style: Theme.of(context).textTheme.bodyMedium,
+            'Start using apps to see statistics',
+            style: Theme.of(context).textTheme.bodySmall,
             textAlign: TextAlign.center,
           ),
         ],
@@ -534,7 +503,6 @@ class _EnhancedDashboardScreenState
   String _calculateFocusScore(List sessions) {
     if (sessions.isEmpty) return '0%';
 
-    // Calculate based on session switches and productive apps
     final productiveTime = sessions
         .where((s) {
           final category = AppCategoryExtension.fromAppName(s.appName);
