@@ -7,6 +7,7 @@ import 'package:focustrack/theme/app_theme.dart';
 import 'package:focustrack/widgets/custom_widgets.dart';
 import 'package:focustrack/models/app_category.dart';
 import 'package:focustrack/widgets/usage_chart.dart';
+import 'package:focustrack/screens/analytics_screen.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -55,6 +56,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.bar_chart_rounded),
+            tooltip: 'Analytics',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AnalyticsScreen(),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             onPressed: () => _showSettingsDialog(context),

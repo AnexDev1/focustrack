@@ -56,6 +56,65 @@ class AppUsageDatabase extends _$AppUsageDatabase {
     )..where((tbl) => tbl.startTime.isBetweenValues(start, end))).get();
   }
 
+  // Get today's sessions
+  Future<List<AppUsageSession>> getTodaySessions() {
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+    return getSessionsInDateRange(startOfDay, endOfDay);
+  }
+
+  // Get yesterday's sessions
+  Future<List<AppUsageSession>> getYesterdaySessions() {
+    final now = DateTime.now();
+    final yesterday = now.subtract(const Duration(days: 1));
+    final startOfDay = DateTime(yesterday.year, yesterday.month, yesterday.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+    return getSessionsInDateRange(startOfDay, endOfDay);
+  }
+
+  // Get this week's sessions
+  Future<List<AppUsageSession>> getThisWeekSessions() {
+    final now = DateTime.now();
+    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+    final startOfDay = DateTime(
+      startOfWeek.year,
+      startOfWeek.month,
+      startOfWeek.day,
+    );
+    return getSessionsInDateRange(startOfDay, now);
+  }
+
+  // Get this month's sessions
+  Future<List<AppUsageSession>> getThisMonthSessions() {
+    final now = DateTime.now();
+    final startOfMonth = DateTime(now.year, now.month, 1);
+    return getSessionsInDateRange(startOfMonth, now);
+  }
+
+  // Get sessions grouped by day for a date range
+  Future<Map<DateTime, List<AppUsageSession>>> getSessionsGroupedByDay(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final sessions = await getSessionsInDateRange(start, end);
+    final Map<DateTime, List<AppUsageSession>> grouped = {};
+
+    for (var session in sessions) {
+      final day = DateTime(
+        session.startTime.year,
+        session.startTime.month,
+        session.startTime.day,
+      );
+      if (!grouped.containsKey(day)) {
+        grouped[day] = [];
+      }
+      grouped[day]!.add(session);
+    }
+
+    return grouped;
+  }
+
   // Get active session
   Future<AppUsageSession?> getActiveSession() {
     return (select(appUsageSessions)

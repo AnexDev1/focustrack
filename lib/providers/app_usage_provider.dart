@@ -1,7 +1,38 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:focustrack/database/app_usage_database.dart';
 import 'package:focustrack/providers/database_provider.dart';
+import 'package:focustrack/services/analytics_service.dart';
 import 'package:drift/drift.dart';
+
+// Provider for analytics service
+final analyticsServiceProvider = Provider<AnalyticsService>((ref) {
+  final database = ref.watch(databaseInitializerProvider).value!;
+  return AnalyticsService(database);
+});
+
+// Provider for today's analytics
+final todayAnalyticsProvider = FutureProvider<AnalyticsData>((ref) async {
+  final service = ref.watch(analyticsServiceProvider);
+  return service.getAnalytics(AnalyticsPeriod.today);
+});
+
+// Provider for yesterday's analytics
+final yesterdayAnalyticsProvider = FutureProvider<AnalyticsData>((ref) async {
+  final service = ref.watch(analyticsServiceProvider);
+  return service.getAnalytics(AnalyticsPeriod.yesterday);
+});
+
+// Provider for this week's analytics
+final weekAnalyticsProvider = FutureProvider<AnalyticsData>((ref) async {
+  final service = ref.watch(analyticsServiceProvider);
+  return service.getAnalytics(AnalyticsPeriod.thisWeek);
+});
+
+// Provider for this month's analytics
+final monthAnalyticsProvider = FutureProvider<AnalyticsData>((ref) async {
+  final service = ref.watch(analyticsServiceProvider);
+  return service.getAnalytics(AnalyticsPeriod.thisMonth);
+});
 
 // Provider for all app usage sessions
 final allSessionsProvider = FutureProvider<List<AppUsageSession>>((ref) async {
