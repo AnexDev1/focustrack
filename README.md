@@ -1,4 +1,4 @@
-# 🎯 FocusTrack
+# 🎯 welcome to murteessaa
 
 > **Professional Screen Time Analytics for Desktop**
 
@@ -176,7 +176,7 @@ We welcome contributions! Here's how you can help:
 - Include mockups if possible
 
 ### 🛠️ Code Contributions
-```bash
+```bash murteessaa alaafii
 # Fork and clone
 git clone https://github.com/yourusername/focustrack.git
 cd focustrack
