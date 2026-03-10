@@ -3,7 +3,6 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
-  dotup_flutter_active_window
   sqlite3_flutter_libs
 )
 

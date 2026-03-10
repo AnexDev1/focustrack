@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:focustrack/database/app_usage_database.dart';
 import 'package:focustrack/providers/database_provider.dart';
 import 'package:focustrack/services/analytics_service.dart';
+import 'package:focustrack/services/deep_analytics_service.dart';
 import 'package:drift/drift.dart';
 
 // Provider for analytics service
@@ -183,3 +184,15 @@ final appUsageNotifierProvider =
     StateNotifierProvider<AppUsageNotifier, AppUsageState>((ref) {
       return AppUsageNotifier(ref);
     });
+
+// Provider for deep analytics service
+final deepAnalyticsServiceProvider = Provider<DeepAnalyticsService>((ref) {
+  final database = ref.watch(databaseInitializerProvider).value!;
+  return DeepAnalyticsService(database);
+});
+
+// Provider for deep analytics data
+final deepAnalyticsProvider = FutureProvider<DeepAnalyticsData>((ref) async {
+  final service = ref.watch(deepAnalyticsServiceProvider);
+  return service.compute();
+});

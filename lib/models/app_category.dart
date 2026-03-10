@@ -7,6 +7,8 @@ enum AppCategory {
   gaming,
   design,
   productivity,
+  browser,
+  system,
   other,
 }
 
@@ -29,6 +31,10 @@ extension AppCategoryExtension on AppCategory {
         return 'Design';
       case AppCategory.productivity:
         return 'Productivity';
+      case AppCategory.browser:
+        return 'Browser';
+      case AppCategory.system:
+        return 'System';
       case AppCategory.other:
         return 'Other';
     }
@@ -38,10 +44,23 @@ extension AppCategoryExtension on AppCategory {
     final name = appName.toLowerCase();
 
     // Development
-    if (name.contains('code') ||
+    if (name.contains('visual studio') ||
+        name.contains('code') ||
         name.contains('terminal') ||
         name.contains('git') ||
-        name.contains('studio')) {
+        name.contains('android studio') ||
+        name.contains('intellij') ||
+        name.contains('pycharm') ||
+        name.contains('webstorm') ||
+        name.contains('rider') ||
+        name.contains('clion') ||
+        name.contains('goland') ||
+        name.contains('datagrip') ||
+        name.contains('sublime') ||
+        name.contains('notepad++') ||
+        name.contains('powershell') ||
+        name.contains('command prompt') ||
+        name.contains('postman')) {
       return AppCategory.development;
     }
 
@@ -51,7 +70,12 @@ extension AppCategoryExtension on AppCategory {
         name.contains('discord') ||
         name.contains('teams') ||
         name.contains('zoom') ||
-        name.contains('meet')) {
+        name.contains('meet') ||
+        name.contains('skype') ||
+        name.contains('signal') ||
+        name.contains('whatsapp') ||
+        name.contains('thunderbird') ||
+        name.contains('outlook')) {
       return AppCategory.communication;
     }
 
@@ -59,9 +83,13 @@ extension AppCategoryExtension on AppCategory {
     if (name.contains('spotify') ||
         name.contains('music') ||
         name.contains('video') ||
-        name.contains('player') ||
+        name.contains('vlc') ||
+        name.contains('media player') ||
+        name.contains('foobar') ||
         name.contains('netflix') ||
-        name.contains('youtube')) {
+        name.contains('youtube') ||
+        name.contains('twitch') ||
+        name.contains('plex')) {
       return AppCategory.entertainment;
     }
 
@@ -69,14 +97,19 @@ extension AppCategoryExtension on AppCategory {
     if (name.contains('twitter') ||
         name.contains('facebook') ||
         name.contains('instagram') ||
-        name.contains('social')) {
+        name.contains('reddit') ||
+        name.contains('social') ||
+        name.contains('tiktok')) {
       return AppCategory.social;
     }
 
     // Gaming
     if (name.contains('steam') ||
         name.contains('game') ||
-        name.contains('epic')) {
+        name.contains('epic games') ||
+        name.contains('gog') ||
+        name.contains('battle.net') ||
+        name.contains('blizzard')) {
       return AppCategory.gaming;
     }
 
@@ -84,18 +117,38 @@ extension AppCategoryExtension on AppCategory {
     if (name.contains('figma') ||
         name.contains('photoshop') ||
         name.contains('illustrator') ||
+        name.contains('after effects') ||
+        name.contains('premiere') ||
         name.contains('gimp') ||
-        name.contains('inkscape')) {
+        name.contains('inkscape') ||
+        name.contains('blender') ||
+        name.contains('canva')) {
       return AppCategory.design;
     }
 
-    // Browsers and productivity
+    // Browsers
     if (name.contains('chrome') ||
         name.contains('firefox') ||
         name.contains('safari') ||
         name.contains('edge') ||
+        name.contains('opera') ||
+        name.contains('brave') ||
+        name.contains('vivaldi') ||
         name.contains('browser')) {
-      return AppCategory.productivity;
+      return AppCategory.browser;
+    }
+
+    // System
+    if (name.contains('file explorer') ||
+        name.contains('task manager') ||
+        name.contains('settings') ||
+        name.contains('notepad') ||
+        name.contains('paint') ||
+        name.contains('calculator') ||
+        name.contains('registry') ||
+        name.contains('remote desktop') ||
+        name.contains('snipping')) {
+      return AppCategory.system;
     }
 
     // Work

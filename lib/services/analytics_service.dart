@@ -168,7 +168,8 @@ class AnalyticsService {
       // Productive time
       if (category == AppCategory.work ||
           category == AppCategory.development ||
-          category == AppCategory.productivity) {
+          category == AppCategory.productivity ||
+          category == AppCategory.browser) {
         productiveDuration += duration;
       }
 

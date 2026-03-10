@@ -149,6 +149,8 @@ class AppTheme {
     'Gaming': Color(0xFFF59E0B), // Amber
     'Design': Color(0xFFEF4444), // Red
     'Productivity': Color(0xFF6366F1), // Indigo
+    'Browser': Color(0xFF0EA5E9), // Sky
+    'System': Color(0xFF78716C), // Stone
     'Other': Color(0xFF64748B), // Gray
   };
 

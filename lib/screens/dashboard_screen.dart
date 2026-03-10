@@ -8,6 +8,7 @@ import 'package:focustrack/widgets/custom_widgets.dart';
 import 'package:focustrack/models/app_category.dart';
 import 'package:focustrack/widgets/usage_chart.dart';
 import 'package:focustrack/screens/analytics_screen.dart';
+import 'package:focustrack/screens/insights_screen.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -57,6 +58,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         elevation: 0,
         actions: [
           IconButton(
+            icon: const Icon(Icons.auto_awesome),
+            tooltip: 'Deep Insights',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const InsightsScreen()),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.bar_chart_rounded),
             tooltip: 'Analytics',
             onPressed: () {
@@ -92,6 +103,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
                     // Quick Stats
                     _buildQuickStats(sessions),
+                    const SizedBox(height: 20),
+
+                    // Insights Mini Card
+                    _buildInsightsMiniCard(),
                     const SizedBox(height: 20),
 
                     // Session History
@@ -481,6 +496,86 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildInsightsMiniCard() {
+    final deepAsync = ref.watch(deepAnalyticsProvider);
+    return deepAsync.when(
+      data: (data) {
+        final streak = data.productivityStreak;
+        final switches = data.switchFrequency;
+        return GlassCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.auto_awesome,
+                    color: AppTheme.warningColor,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Quick Insights',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const InsightsScreen(),
+                        ),
+                      );
+                    },
+                    child: const Text('See All'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(
+                    Icons.local_fire_department,
+                    color: AppTheme.warningColor,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${streak.currentStreak}-day streak',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(width: 20),
+                  Icon(Icons.swap_horiz, color: AppTheme.accentColor, size: 16),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${switches.totalSwitches} switches',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              if (data.insights.isNotEmpty)
+                Text(
+                  data.insights.first,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppTheme.textSecondary,
+                    fontStyle: FontStyle.italic,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+            ],
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 

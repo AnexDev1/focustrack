@@ -17,7 +17,7 @@ class _UsageChartState extends ConsumerState<UsageChart> {
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+    _timer = Timer.periodic(const Duration(seconds: 30), (_) {
       ref.invalidate(recentSessionsProvider);
     });
   }
