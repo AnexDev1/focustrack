@@ -104,7 +104,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       const SizedBox(height: 20),
                       SizedBox(height: 250, child: _buildUsageChart()),
                       const SizedBox(height: 20),
-                      SizedBox(height: 400, child: _buildSessionHistory(sessions)),
+                      SizedBox(
+                        height: 400,
+                        child: _buildSessionHistory(sessions),
+                      ),
                       const SizedBox(height: 20),
                       SizedBox(height: 400, child: _buildTopAppsList(sessions)),
                     ],

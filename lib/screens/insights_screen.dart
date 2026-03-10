@@ -62,7 +62,14 @@ class _InsightsBody extends StatelessWidget {
               ];
               if (narrow) {
                 return Column(
-                  children: cards.map((c) => Padding(padding: const EdgeInsets.only(bottom: 16), child: c)).toList(),
+                  children: cards
+                      .map(
+                        (c) => Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: c,
+                        ),
+                      )
+                      .toList(),
                 );
               }
               return IntrinsicHeight(
@@ -97,9 +104,17 @@ class _InsightsBody extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(flex: 3, child: _HourlyHeatmap(hourly: data.hourlyUsage)),
+                    Expanded(
+                      flex: 3,
+                      child: _HourlyHeatmap(hourly: data.hourlyUsage),
+                    ),
                     const SizedBox(width: 16),
-                    Expanded(flex: 2, child: _SessionDistribution(buckets: data.sessionDistribution)),
+                    Expanded(
+                      flex: 2,
+                      child: _SessionDistribution(
+                        buckets: data.sessionDistribution,
+                      ),
+                    ),
                   ],
                 ),
               );
@@ -126,7 +141,9 @@ class _InsightsBody extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(child: _SwitchAnalysis(switches: data.switchFrequency)),
+                    Expanded(
+                      child: _SwitchAnalysis(switches: data.switchFrequency),
+                    ),
                     const SizedBox(width: 16),
                     Expanded(
                       child: _CategoryBreakdown(
