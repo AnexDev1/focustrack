@@ -55,6 +55,15 @@ static void my_application_activate(GApplication* application) {
 
   gtk_window_set_default_size(window, 1280, 720);
 
+  // set icon to match landing page bullseye
+  // The PNG is included in flutter assets at runtime.
+  // The binary's working directory will be the executable location; the asset
+  // path is ../data/flutter_assets/assets/target.png relative to that.
+  gchar *icon_path = g_strdup_printf("%s/../data/flutter_assets/assets/target.png",
+                                     g_get_current_dir());
+  gtk_window_set_default_icon_from_file(icon_path, NULL);
+  g_free(icon_path);
+
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(project, self->dart_entrypoint_arguments);
 

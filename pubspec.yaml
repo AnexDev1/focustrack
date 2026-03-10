@@ -25,6 +25,20 @@ dev_dependencies:
   flutter_lints: ^5.0.0
   drift_dev: ^2.18.0
   build_runner: ^2.4.9
+  flutter_launcher_icons: ^0.11.0
+
+flutter_icons:
+  android: false
+  ios: false
+  windows:
+    generate: true
+    image_path: "assets/target.png"
+  linux:
+    generate: true
+    image_path: "assets/target.png"
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/target.png
+

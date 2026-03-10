@@ -1,0 +1,22 @@
+FocusTrack Privacy Notice
+
+Last updated: March 10, 2026
+
+FocusTrack is a privacy-first desktop application. The application stores screen time activity, app usage summaries, and related analytics locally on your device so that you can review your own productivity data.
+
+By default, FocusTrack does not require an account and does not upload your activity history to FocusTrack-operated servers.
+
+FocusTrack may locally store:
+- Active app names and window titles
+- Session timestamps and durations
+- Category totals, streaks, analytics, and preferences
+
+FocusTrack does not, by default:
+- Log keystrokes
+- Capture clipboard contents
+- Sell your data
+- Embed third-party ads
+
+Export features may create JSON or CSV files on your device when you choose to export your data.
+
+If you distribute FocusTrack publicly, replace any placeholder contact or support information with your own.
