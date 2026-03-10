@@ -88,50 +88,66 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: sessionsAsync.when(
-          data: (sessions) => Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Left Column - Stats & History
-              Expanded(
-                flex: 2,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Current Activity
-                    _buildCurrentActivityCard(currentApp, isTracking),
-                    const SizedBox(height: 20),
-
-                    // Quick Stats
-                    _buildQuickStats(sessions),
-                    const SizedBox(height: 20),
-
-                    // Insights Mini Card
-                    _buildInsightsMiniCard(),
-                    const SizedBox(height: 20),
-
-                    // Session History
-                    Expanded(child: _buildSessionHistory(sessions)),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 24),
-
-              // Right Column - App Lists & Chart
-              Expanded(
-                flex: 3,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Usage Chart
-                    _buildUsageChart(),
-                    const SizedBox(height: 20),
-
-                    // Top Apps List
-                    Expanded(child: _buildTopAppsList(sessions)),
-                  ],
-                ),
-              ),
-            ],
+          data: (sessions) => LayoutBuilder(
+            builder: (context, constraints) {
+              // Use single-column scrollable layout for narrow/short windows
+              if (constraints.maxWidth < 800) {
+                return SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildCurrentActivityCard(currentApp, isTracking),
+                      const SizedBox(height: 20),
+                      _buildQuickStats(sessions),
+                      const SizedBox(height: 20),
+                      _buildInsightsMiniCard(),
+                      const SizedBox(height: 20),
+                      SizedBox(height: 250, child: _buildUsageChart()),
+                      const SizedBox(height: 20),
+                      SizedBox(height: 400, child: _buildSessionHistory(sessions)),
+                      const SizedBox(height: 20),
+                      SizedBox(height: 400, child: _buildTopAppsList(sessions)),
+                    ],
+                  ),
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Left Column - scrollable
+                  Expanded(
+                    flex: 2,
+                    child: ListView(
+                      children: [
+                        _buildCurrentActivityCard(currentApp, isTracking),
+                        const SizedBox(height: 20),
+                        _buildQuickStats(sessions),
+                        const SizedBox(height: 20),
+                        _buildInsightsMiniCard(),
+                        const SizedBox(height: 20),
+                        SizedBox(
+                          height: (constraints.maxHeight - 80).clamp(300, 600),
+                          child: _buildSessionHistory(sessions),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 24),
+                  // Right Column
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildUsageChart(),
+                        const SizedBox(height: 20),
+                        Expanded(child: _buildTopAppsList(sessions)),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, stack) => Center(child: Text('Error: $error')),

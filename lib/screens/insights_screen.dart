@@ -46,58 +46,98 @@ class _InsightsBody extends StatelessWidget {
           const SizedBox(height: 24),
 
           // ── Row 1: Streak · Goal · Comparisons ──
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: _StreakCard(streak: data.productivityStreak)),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _ComparisonCard(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final narrow = constraints.maxWidth < 800;
+              final cards = [
+                _StreakCard(streak: data.productivityStreak),
+                _ComparisonCard(
                   day: data.dayComparison,
                   week: data.weekComparison,
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _FocusCard(
+                _FocusCard(
                   multitask: data.multitaskingScore,
                   peak: data.peakProductivityWindow,
                 ),
-              ),
-            ],
+              ];
+              if (narrow) {
+                return Column(
+                  children: cards.map((c) => Padding(padding: const EdgeInsets.only(bottom: 16), child: c)).toList(),
+                );
+              }
+              return IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: cards[0]),
+                    const SizedBox(width: 16),
+                    Expanded(child: cards[1]),
+                    const SizedBox(width: 16),
+                    Expanded(child: cards[2]),
+                  ],
+                ),
+              );
+            },
           ),
           const SizedBox(height: 24),
 
           // ── Row 2: Hourly Heatmap · Session Distribution ──
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 3,
-                child: _HourlyHeatmap(hourly: data.hourlyUsage),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                flex: 2,
-                child: _SessionDistribution(buckets: data.sessionDistribution),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 800) {
+                return Column(
+                  children: [
+                    _HourlyHeatmap(hourly: data.hourlyUsage),
+                    const SizedBox(height: 16),
+                    _SessionDistribution(buckets: data.sessionDistribution),
+                  ],
+                );
+              }
+              return IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(flex: 3, child: _HourlyHeatmap(hourly: data.hourlyUsage)),
+                    const SizedBox(width: 16),
+                    Expanded(flex: 2, child: _SessionDistribution(buckets: data.sessionDistribution)),
+                  ],
+                ),
+              );
+            },
           ),
           const SizedBox(height: 24),
 
           // ── Row 3: App Switch Analysis · Category Breakdown ──
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: _SwitchAnalysis(switches: data.switchFrequency)),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _CategoryBreakdown(
-                  categoryUsage: data.categoryUsage,
-                  totalMs: data.totalScreenTimeMs,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 800) {
+                return Column(
+                  children: [
+                    _SwitchAnalysis(switches: data.switchFrequency),
+                    const SizedBox(height: 16),
+                    _CategoryBreakdown(
+                      categoryUsage: data.categoryUsage,
+                      totalMs: data.totalScreenTimeMs,
+                    ),
+                  ],
+                );
+              }
+              return IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: _SwitchAnalysis(switches: data.switchFrequency)),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _CategoryBreakdown(
+                        categoryUsage: data.categoryUsage,
+                        totalMs: data.totalScreenTimeMs,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
+              );
+            },
           ),
           const SizedBox(height: 24),
 
