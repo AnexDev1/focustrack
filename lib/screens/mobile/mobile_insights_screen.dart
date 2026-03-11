@@ -416,7 +416,7 @@ class _InsightsBody extends StatelessWidget {
                       ),
                       Center(
                         child: Text(
-                          '${ms.score.toStringAsFixed(0)}',
+                          ms.score.toStringAsFixed(0),
                           style: Theme.of(context).textTheme.headlineSmall
                               ?.copyWith(
                                 fontWeight: FontWeight.bold,

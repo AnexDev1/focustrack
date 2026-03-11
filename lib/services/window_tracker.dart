@@ -1,5 +1,6 @@
+import 'dart:convert';
 import 'dart:ffi';
-import 'dart:io' show Platform, Process;
+import 'dart:io' show File, Link, Platform, Process;
 import 'package:ffi/ffi.dart';
 
 class WindowInfo {
@@ -7,6 +8,8 @@ class WindowInfo {
   final String executableName;
   final String? windowTitle;
   final String? executablePath;
+  final String? windowClass;
+  final String? windowInstance;
   final int processId;
 
   WindowInfo({
@@ -14,6 +17,8 @@ class WindowInfo {
     required this.executableName,
     this.windowTitle,
     this.executablePath,
+    this.windowClass,
+    this.windowInstance,
     required this.processId,
   });
 }
@@ -40,26 +45,56 @@ final class _LastInputInfo extends Struct {
 const _processDisplayNames = <String, String>{
   // Browsers
   'chrome': 'Google Chrome',
+  'googlechrome': 'Google Chrome',
+  'chromium': 'Chromium',
   'firefox': 'Firefox',
+  'firefoxbin': 'Firefox',
+  'mozillafirefox': 'Firefox',
+  'firefoxdeveloperedition': 'Firefox Developer Edition',
+  'navigator': 'Firefox',
+  'librewolf': 'LibreWolf',
+  'zenbrowser': 'Zen Browser',
+  'zen': 'Zen Browser',
   'msedge': 'Microsoft Edge',
+  'microsoftedge': 'Microsoft Edge',
   'opera': 'Opera',
   'brave': 'Brave Browser',
+  'bravebrowser': 'Brave Browser',
   'vivaldi': 'Vivaldi',
   'iexplore': 'Internet Explorer',
   // Communication
-  'Telegram': 'Telegram',
+  'telegram': 'Telegram',
+  'telegramdesktop': 'Telegram',
+  'orgtelegramdesktop': 'Telegram',
+  'telegramdesktopdesktop': 'Telegram',
+  'telegrambeta': 'Telegram',
+  'ayugram': 'AyuGram',
+  'ayugramdesktop': 'AyuGram',
+  'orgayugramdesktop': 'AyuGram',
+  'ayugramtelegramdesktop': 'AyuGram',
+  '64gram': '64Gram',
+  'discord': 'Discord',
   'Discord': 'Discord',
   'Slack': 'Slack',
+  'slack': 'Slack',
   'Teams': 'Microsoft Teams',
   'ms-teams': 'Microsoft Teams',
+  'msteams': 'Microsoft Teams',
   'Zoom': 'Zoom',
+  'zoom': 'Zoom',
   'Skype': 'Skype',
+  'skype': 'Skype',
   'Signal': 'Signal',
+  'signal': 'Signal',
   'WhatsApp': 'WhatsApp',
+  'whatsapp': 'WhatsApp',
   'thunderbird': 'Thunderbird',
-  'OUTLOOK': 'Microsoft Outlook',
+  'outlook': 'Microsoft Outlook',
   // Development
   'Code': 'Visual Studio Code',
+  'code': 'Visual Studio Code',
+  'codeoss': 'Visual Studio Code',
+  'codium': 'VSCodium',
   'devenv': 'Visual Studio',
   'idea64': 'IntelliJ IDEA',
   'idea': 'IntelliJ IDEA',
@@ -79,19 +114,28 @@ const _processDisplayNames = <String, String>{
   'pwsh': 'PowerShell',
   'mintty': 'Git Bash',
   'GitHubDesktop': 'GitHub Desktop',
+  'githubdesktop': 'GitHub Desktop',
   // Office / Productivity
-  'EXCEL': 'Microsoft Excel',
-  'WINWORD': 'Microsoft Word',
-  'POWERPNT': 'Microsoft PowerPoint',
-  'ONENOTE': 'OneNote',
-  'MSACCESS': 'Microsoft Access',
+  'excel': 'Microsoft Excel',
+  'winword': 'Microsoft Word',
+  'powerpnt': 'Microsoft PowerPoint',
+  'onenote': 'OneNote',
+  'msaccess': 'Microsoft Access',
   'Notion': 'Notion',
+  'notion': 'Notion',
   'Obsidian': 'Obsidian',
+  'obsidian': 'Obsidian',
   'Todoist': 'Todoist',
+  'todoist': 'Todoist',
   // File management
   'explorer': 'File Explorer',
+  'nautilus': 'Files',
+  'orggnomenautilus': 'Files',
+  'dolphin': 'Dolphin',
+  'thunar': 'Thunar',
   // Media
   'Spotify': 'Spotify',
+  'spotify': 'Spotify',
   'vlc': 'VLC Media Player',
   'wmplayer': 'Windows Media Player',
   'foobar2000': 'foobar2000',
@@ -104,10 +148,13 @@ const _processDisplayNames = <String, String>{
   'GIMP': 'GIMP',
   'inkscape': 'Inkscape',
   'Blender': 'Blender',
+  'blender': 'Blender',
   // Gaming
   'steam': 'Steam',
   'EpicGamesLauncher': 'Epic Games',
+  'epicgameslauncher': 'Epic Games',
   'GalaxyClient': 'GOG Galaxy',
+  'galaxyclient': 'GOG Galaxy',
   // System
   'notepad': 'Notepad',
   'mspaint': 'Paint',
@@ -116,15 +163,23 @@ const _processDisplayNames = <String, String>{
   'mstsc': 'Remote Desktop',
   'taskmgr': 'Task Manager',
   'SystemSettings': 'Settings',
+  'orggnomeSettings': 'Settings',
+  'orggnomecontrolcenter': 'Settings',
   // Other popular apps
   'Postman': 'Postman',
+  'postman': 'Postman',
   'docker': 'Docker Desktop',
   'filezilla': 'FileZilla',
   'PuTTY': 'PuTTY',
   'WinSCP': 'WinSCP',
   '7zFM': '7-Zip',
   'Bitwarden': 'Bitwarden',
+  'bitwarden': 'Bitwarden',
   '1Password': '1Password',
+  'obs': 'OBS Studio',
+  'obsstudio': 'OBS Studio',
+  'orggimpGIMP': 'GIMP',
+  'orginkscapeInkscape': 'Inkscape',
 };
 
 /// Processes whose own name is meaningless – use the window title instead.
@@ -140,33 +195,78 @@ const _genericProcesses = <String>{
   'cscript',
   'shellexperiencehost',
   'searchhost',
+  'flatpak',
+  'bwrap',
+  'snap',
+  'gtk-launch',
+};
+
+const _titleFragmentDisplayNames = <String, String>{
+  'mozillafirefox': 'Firefox',
+  'firefox': 'Firefox',
+  'ayugram': 'AyuGram',
+  'telegram': 'Telegram',
+  'telegramdesktop': 'Telegram',
+  '64gram': '64Gram',
+  'librewolf': 'LibreWolf',
+  'zenbrowser': 'Zen Browser',
+  'vivaldi': 'Vivaldi',
+  'brave': 'Brave Browser',
+  'chromium': 'Chromium',
+  'googlechrome': 'Google Chrome',
 };
 
 // ---------------------------------------------------------------------------
 // Resolve a human-readable app name from exe name + window title
 // ---------------------------------------------------------------------------
-String _resolveAppName(String executableName, String? windowTitle) {
-  final lowerExe = executableName.toLowerCase();
+String _resolveAppName(
+  String executableName,
+  String? windowTitle, {
+  String? executablePath,
+  String? windowClass,
+  String? windowInstance,
+  String? trackerAppName,
+}) {
+  final knownName = _lookupKnownDisplayName([
+    executableName,
+    _basenameWithoutExtension(executablePath),
+    windowClass,
+    windowInstance,
+    trackerAppName,
+    ..._extractTitleCandidates(windowTitle),
+  ]);
+  if (knownName != null) return knownName;
 
-  // 1. Known display name
-  for (final entry in _processDisplayNames.entries) {
-    if (entry.key.toLowerCase() == lowerExe) return entry.value;
-  }
+  final titleKnownName = _lookupTitleFragmentDisplayName(windowTitle);
+  if (titleKnownName != null) return titleKnownName;
 
-  // 2. Generic host processes → parse window title
-  if (_genericProcesses.contains(lowerExe) &&
+  final normalizedExe = _normalizeAppIdentifier(executableName);
+
+  if (_genericProcesses.any(
+        (processName) => _normalizeAppIdentifier(processName) == normalizedExe,
+      ) &&
       windowTitle != null &&
       windowTitle.isNotEmpty) {
     final parsed = _extractAppNameFromTitle(windowTitle);
+    final parsedKnown = _lookupKnownDisplayName([parsed]);
+    if (parsedKnown != null) return parsedKnown;
     if (parsed != null) return parsed;
   }
 
-  // 3. Prettify the raw exe name
   if (executableName.isNotEmpty && executableName != 'Unknown') {
     return _prettifyName(executableName);
   }
 
-  // 4. Last resort – window title
+  if (windowClass != null && windowClass.isNotEmpty) {
+    return _prettifyName(windowClass);
+  }
+
+  if (trackerAppName != null &&
+      trackerAppName.isNotEmpty &&
+      trackerAppName != 'Unknown') {
+    return _prettifyName(trackerAppName);
+  }
+
   if (windowTitle != null && windowTitle.isNotEmpty) {
     return _extractAppNameFromTitle(windowTitle) ?? windowTitle;
   }
@@ -174,22 +274,100 @@ String _resolveAppName(String executableName, String? windowTitle) {
   return 'Unknown';
 }
 
-String? _extractAppNameFromTitle(String title) {
-  // Many apps use "Document - AppName" or "Page | AppName"
-  final dashIdx = title.lastIndexOf(' - ');
-  final pipeIdx = title.lastIndexOf(' | ');
-  final idx = dashIdx > pipeIdx ? dashIdx : pipeIdx;
-  if (idx != -1 && idx + 3 < title.length) {
-    return title.substring(idx + 3).trim();
+String _normalizeAppIdentifier(String? value) {
+  if (value == null) return '';
+  return value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '');
+}
+
+String? _lookupKnownDisplayName(Iterable<String?> candidates) {
+  for (final candidate in candidates) {
+    final normalized = _normalizeAppIdentifier(candidate);
+    if (normalized.isEmpty) continue;
+    for (final entry in _processDisplayNames.entries) {
+      if (_normalizeAppIdentifier(entry.key) == normalized) {
+        return entry.value;
+      }
+    }
   }
+  return null;
+}
+
+String? _basenameWithoutExtension(String? path) {
+  if (path == null || path.isEmpty) return null;
+  final fileName = path.split('/').last;
+  return fileName.replaceAll(
+    RegExp(r'\.(exe|desktop)$', caseSensitive: false),
+    '',
+  );
+}
+
+String? _extractAppNameFromTitle(String title) {
+  final candidates = _extractTitleCandidates(title);
+  for (final candidate in candidates) {
+    if (candidate != title && candidate.trim().isNotEmpty) {
+      return candidate.trim();
+    }
+  }
+  return null;
+}
+
+List<String> _extractTitleCandidates(String? title) {
+  if (title == null) return const [];
+  final trimmed = title.trim();
+  if (trimmed.isEmpty) return const [];
+
+  final candidates = <String>[trimmed];
+  final separators = [
+    ' - ',
+    ' | ',
+    ' — ',
+    ' – ',
+    ' • ',
+    ' · ',
+    ' :: ',
+    ' —',
+    ' –',
+  ];
+
+  for (final separator in separators) {
+    if (!trimmed.contains(separator)) continue;
+    final parts = trimmed
+        .split(separator)
+        .map((part) => part.trim())
+        .where((part) => part.isNotEmpty);
+    candidates.addAll(parts);
+    if (parts.isNotEmpty) {
+      candidates.add(parts.last);
+    }
+  }
+
+  return candidates.toSet().toList();
+}
+
+String? _lookupTitleFragmentDisplayName(String? title) {
+  final normalizedTitle = _normalizeAppIdentifier(title);
+  if (normalizedTitle.isEmpty) return null;
+
+  for (final entry in _titleFragmentDisplayNames.entries) {
+    final normalizedKey = _normalizeAppIdentifier(entry.key);
+    if (normalizedKey.isNotEmpty && normalizedTitle.contains(normalizedKey)) {
+      return entry.value;
+    }
+  }
+
   return null;
 }
 
 String _prettifyName(String name) {
   // Remove common suffixes like "64", "_x64"
   var n = name
+      .replaceAll(RegExp(r'\.desktop$', caseSensitive: false), '')
       .replaceAll(RegExp(r'[_\-]?x?64$', caseSensitive: false), '')
-      .replaceAll(RegExp(r'\.exe$', caseSensitive: false), '');
+      .replaceAll(RegExp(r'\.exe$', caseSensitive: false), '')
+      .replaceAll('.', ' ')
+      .replaceAll('_', ' ')
+      .replaceAll('-', ' ')
+      .trim();
   if (n.isEmpty) return name;
   // Title‑case first letter
   return n[0].toUpperCase() + n.substring(1);
@@ -325,7 +503,11 @@ class WindowTrackerImpl implements WindowTracker {
         }
       }
 
-      final displayName = _resolveAppName(executableName, windowTitle);
+      final displayName = _resolveAppName(
+        executableName,
+        windowTitle,
+        executablePath: executablePath,
+      );
 
       return WindowInfo(
         appName: displayName,
@@ -359,33 +541,164 @@ class WindowTrackerImpl implements WindowTracker {
   // -- Linux ----------------------------------------------------------------
   WindowInfo? _getActiveWindowLinux() {
     try {
-      // Use xdotool (widely available on X11)
-      final pidResult = Process.runSync('xdotool', [
-        'getactivewindow',
-        'getwindowpid',
-      ]);
-      final nameResult = Process.runSync('xdotool', [
-        'getactivewindow',
-        'getwindowname',
-      ]);
-
-      final pid = int.tryParse(pidResult.stdout.toString().trim()) ?? 0;
-      final windowTitle = nameResult.stdout.toString().trim();
-
       String exeName = 'Unknown';
-      if (pid > 0) {
-        final ps = Process.runSync('ps', ['-p', '$pid', '-o', 'comm=']);
-        exeName = ps.stdout.toString().trim();
+      String windowTitle = '';
+      String? executablePath;
+      String? windowClass;
+      String? windowInstance;
+      String? trackerAppName;
+      int pid = 0;
+
+      final gnomeWindowInfo = _getActiveWindowFromGnomeShellExtension();
+      if (gnomeWindowInfo != null) {
+        trackerAppName = gnomeWindowInfo['appName'];
+        windowTitle = gnomeWindowInfo['title'] ?? '';
+        windowClass = gnomeWindowInfo['wmClass'];
+        windowInstance = gnomeWindowInfo['wmClassInstance'];
+        exeName =
+            gnomeWindowInfo['appId'] ?? gnomeWindowInfo['appName'] ?? 'Unknown';
+        pid = int.tryParse(gnomeWindowInfo['pid'] ?? '') ?? 0;
       }
 
-      final displayName = _resolveAppName(exeName, windowTitle);
+      if (trackerAppName == null || trackerAppName.isEmpty) {
+        try {
+          final trackerDir = Platform.resolvedExecutable;
+          final trackerPath =
+              '${trackerDir.substring(0, trackerDir.lastIndexOf('/'))}/active_window_linux';
+          final result = Process.runSync(trackerPath, []);
+          final data = _parseLinuxTrackerOutput(result.stdout.toString());
+          if (data.isNotEmpty) {
+            trackerAppName = data['app'];
+            windowTitle = data['title'] ?? '';
+            windowClass = data['class'];
+            windowInstance = data['instance'];
+            pid = int.tryParse(data['pid'] ?? '') ?? 0;
+          } else {
+            throw Exception('Invalid output');
+          }
+        } catch (_) {
+          // Fallback to xdotool
+          final pidResult = Process.runSync('xdotool', [
+            'getactivewindow',
+            'getwindowpid',
+          ]);
+          final nameResult = Process.runSync('xdotool', [
+            'getactivewindow',
+            'getwindowname',
+          ]);
+
+          pid = int.tryParse(pidResult.stdout.toString().trim()) ?? 0;
+          windowTitle = nameResult.stdout.toString().trim();
+
+          if (pid > 0) {
+            final ps = Process.runSync('ps', ['-p', '$pid', '-o', 'comm=']);
+            exeName = ps.stdout.toString().trim();
+          }
+        }
+      }
+
+      if (pid > 0) {
+        executablePath = _readLinuxExecutablePath(pid);
+        final procExeName = _readLinuxExecutableName(pid);
+        if (procExeName != null && procExeName.isNotEmpty) {
+          exeName = procExeName;
+        }
+      }
+
+      if ((exeName.isEmpty || exeName == 'Unknown') &&
+          trackerAppName != null &&
+          trackerAppName.isNotEmpty) {
+        exeName = trackerAppName;
+      }
+
+      final displayName = _resolveAppName(
+        exeName,
+        windowTitle,
+        executablePath: executablePath,
+        windowClass: windowClass,
+        windowInstance: windowInstance,
+        trackerAppName: trackerAppName,
+      );
 
       return WindowInfo(
         appName: displayName,
         executableName: exeName,
         windowTitle: windowTitle,
+        executablePath: executablePath,
+        windowClass: windowClass,
+        windowInstance: windowInstance,
         processId: pid,
       );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Map<String, String>? _getActiveWindowFromGnomeShellExtension() {
+    try {
+      if (!Platform.isLinux) return null;
+      final desktop = Platform.environment['XDG_CURRENT_DESKTOP'] ?? '';
+      if (!desktop.toLowerCase().contains('gnome')) return null;
+
+      final result = Process.runSync('gdbus', [
+        'call',
+        '--session',
+        '--dest',
+        'com.focustrack.WindowTracker',
+        '--object-path',
+        '/com/focustrack/WindowTracker',
+        '--method',
+        'com.focustrack.WindowTracker.GetActiveWindowJson',
+      ]);
+
+      if (result.exitCode != 0) return null;
+      final stdout = result.stdout.toString().trim();
+      final start = stdout.indexOf("'");
+      final end = stdout.lastIndexOf("'");
+      if (start == -1 || end <= start) return null;
+
+      final jsonString = stdout
+          .substring(start + 1, end)
+          .replaceAll("\\'", "'")
+          .replaceAll(r'\\', r'\');
+      final decoded = jsonDecode(jsonString);
+      if (decoded is! Map) return null;
+
+      return decoded.map(
+        (key, value) => MapEntry(key.toString(), value?.toString() ?? ''),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Map<String, String> _parseLinuxTrackerOutput(String output) {
+    final data = <String, String>{};
+    for (final line in output.split('\n')) {
+      final separatorIndex = line.indexOf(':');
+      if (separatorIndex == -1) continue;
+      final key = line.substring(0, separatorIndex).trim().toLowerCase();
+      final value = line.substring(separatorIndex + 1).trim();
+      if (value.isNotEmpty) {
+        data[key] = value;
+      }
+    }
+    return data;
+  }
+
+  String? _readLinuxExecutableName(int pid) {
+    try {
+      final comm = File('/proc/$pid/comm').readAsStringSync().trim();
+      if (comm.isNotEmpty) return comm;
+    } catch (_) {}
+
+    final executablePath = _readLinuxExecutablePath(pid);
+    return _basenameWithoutExtension(executablePath);
+  }
+
+  String? _readLinuxExecutablePath(int pid) {
+    try {
+      return Link('/proc/$pid/exe').targetSync();
     } catch (_) {
       return null;
     }

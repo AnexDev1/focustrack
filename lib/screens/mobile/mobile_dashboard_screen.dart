@@ -289,8 +289,10 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
       0,
       (sum, session) => sum + session.durationMs,
     );
-    final hours = Duration(milliseconds: totalTime).inHours;
-    final minutes = Duration(milliseconds: totalTime).inMinutes.remainder(60);
+    final duration = Duration(milliseconds: totalTime);
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    final seconds = duration.inSeconds.remainder(60);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -358,6 +360,27 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
                     style: TextStyle(
                       color: Colors.white60,
                       fontSize: 20,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                // seconds display (merged)
+                Text(
+                  seconds.toString().padLeft(2, '0'),
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 36,
+                    fontWeight: FontWeight.w500,
+                    height: 1,
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    's',
+                    style: TextStyle(
+                      color: Colors.white38,
+                      fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
                   ),

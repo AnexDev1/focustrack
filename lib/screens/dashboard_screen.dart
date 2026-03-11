@@ -705,7 +705,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
         final totalTime = sessions.fold<int>(
           0,
-          (sum, session) => sum + (session.durationMs as int),
+          (sum, session) => sum + (session.durationMs),
         );
         final appCount = sessions.map((s) => s.appName).toSet().length;
 

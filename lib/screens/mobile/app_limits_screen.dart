@@ -273,7 +273,7 @@ class _AppLimitsScreenState extends ConsumerState<AppLimitsScreen> {
               ),
               Switch(
                 value: status.limit.enabled,
-                activeColor: AppTheme.primaryColor,
+                activeThumbColor: AppTheme.primaryColor,
                 onChanged: (val) async {
                   await AppLimitsService.toggleLimit(status.limit.appName, val);
                   // Immediately apply change to blocker (no need to wait for 1-min timer)

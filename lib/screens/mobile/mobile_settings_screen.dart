@@ -246,7 +246,7 @@ class _MobileSettingsScreenState extends ConsumerState<MobileSettingsScreen> {
                       : 'Service stopped',
                   trailing: Switch(
                     value: _serviceRunning,
-                    activeColor: AppTheme.primaryColor,
+                    activeThumbColor: AppTheme.primaryColor,
                     onChanged: (val) async {
                       if (val) {
                         await AndroidUsageStatsService.startForegroundService();
@@ -346,7 +346,7 @@ class _MobileSettingsScreenState extends ConsumerState<MobileSettingsScreen> {
                     'Remind to take breaks every ${_breakIntervalMinutes}m',
                 trailing: Switch(
                   value: _breakRemindersEnabled,
-                  activeColor: AppTheme.primaryColor,
+                  activeThumbColor: AppTheme.primaryColor,
                   onChanged: (val) {
                     setState(() => _breakRemindersEnabled = val);
                     _saveNotifPref('notif_break_reminders', val);

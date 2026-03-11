@@ -1,6 +1,7 @@
 #include "my_application.h"
 
 #include <flutter_linux/flutter_linux.h>
+#include <glib.h>
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
 #endif
@@ -59,10 +60,19 @@ static void my_application_activate(GApplication* application) {
   // The PNG is included in flutter assets at runtime.
   // The binary's working directory will be the executable location; the asset
   // path is ../data/flutter_assets/assets/target.png relative to that.
-  gchar *icon_path = g_strdup_printf("%s/../data/flutter_assets/assets/target.png",
-                                     g_get_current_dir());
-  gtk_window_set_default_icon_from_file(icon_path, NULL);
-  g_free(icon_path);
+  g_autofree gchar* executable_path = g_file_read_link("/proc/self/exe", NULL);
+  if (executable_path != NULL) {
+    g_autofree gchar* executable_dir = g_path_get_dirname(executable_path);
+    g_autofree gchar* icon_path = g_build_filename(
+        executable_dir,
+        "..",
+        "data",
+        "flutter_assets",
+        "assets",
+        "target.png",
+        NULL);
+    gtk_window_set_default_icon_from_file(icon_path, NULL);
+  }
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(project, self->dart_entrypoint_arguments);

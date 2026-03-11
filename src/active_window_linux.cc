@@ -32,6 +32,23 @@ std::string get_property(Display* disp, Window win, Atom atom) {
     return "";
 }
 
+unsigned long get_cardinal_property(Display* disp, Window win, Atom atom) {
+    Atom actual_type;
+    int actual_format;
+    unsigned long nitems, bytes_after;
+    unsigned char* prop_data = nullptr;
+
+    if (XGetWindowProperty(disp, win, atom, 0, 1, False, XA_CARDINAL,
+                           &actual_type, &actual_format, &nitems, &bytes_after,
+                           &prop_data) == Success && prop_data) {
+        unsigned long value = *reinterpret_cast<unsigned long*>(prop_data);
+        XFree(prop_data);
+        return value;
+    }
+
+    return 0;
+}
+
 // Get the actual focused window, traversing up if needed
 Window get_focused_window(Display* disp, Window root, Atom net_active_atom) {
     // First try _NET_ACTIVE_WINDOW
@@ -68,6 +85,7 @@ int main() {
     Window root = DefaultRootWindow(disp);
     Atom net_active_window_atom = XInternAtom(disp, "_NET_ACTIVE_WINDOW", False);
     Atom net_wm_name_atom = XInternAtom(disp, "_NET_WM_NAME", False);
+    Atom net_wm_pid_atom = XInternAtom(disp, "_NET_WM_PID", False);
     Atom wm_name_atom = XInternAtom(disp, "WM_NAME", False);
     Atom wm_class_atom = XInternAtom(disp, "WM_CLASS", False);
 
@@ -87,6 +105,7 @@ int main() {
 
     // Get WM_CLASS
     std::string window_class;
+    std::string window_instance;
     Atom actual_type;
     int actual_format;
     unsigned long nitems, bytes_after;
@@ -108,6 +127,7 @@ int main() {
         
         // Get the instance name (first string)
         std::string instance_name(class_data, first_null);
+        window_instance = instance_name;
         
         // Get the class name (second string) if available
         std::string class_name;
@@ -125,6 +145,8 @@ int main() {
         
         XFree(prop_data);
     }
+
+    unsigned long pid = get_cardinal_property(disp, active_win, net_wm_pid_atom);
 
     // Use window_class as app name, with smarter fallbacks
     std::string app_name;
@@ -153,6 +175,9 @@ int main() {
 
     std::cout << "App: " << app_name << std::endl;
     std::cout << "Title: " << window_title << std::endl;
+    std::cout << "Class: " << window_class << std::endl;
+    std::cout << "Instance: " << window_instance << std::endl;
+    std::cout << "Pid: " << pid << std::endl;
 
     XCloseDisplay(disp);
     return 0;

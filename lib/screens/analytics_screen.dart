@@ -340,8 +340,9 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
-                        if (value.toInt() >= sortedDays.length)
+                        if (value.toInt() >= sortedDays.length) {
                           return const SizedBox();
+                        }
                         final day = sortedDays[value.toInt()].key;
                         return Padding(
                           padding: const EdgeInsets.only(top: 8),

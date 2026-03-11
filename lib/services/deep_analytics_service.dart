@@ -516,7 +516,9 @@ class DeepAnalyticsService {
       final avgMs = totalMs ~/ list.length;
 
       final hourly = <int, int>{};
-      for (var h = 0; h < 24; h++) hourly[h] = 0;
+      for (var h = 0; h < 24; h++) {
+        hourly[h] = 0;
+      }
       for (final s in list) {
         hourly[s.startTime.hour] = hourly[s.startTime.hour]! + s.durationMs;
       }
@@ -545,7 +547,9 @@ class DeepAnalyticsService {
   String _findPeakProductivityWindow(List<AppUsageSession> sessions) {
     // Find 2‑hour window with most productive ms
     final hourProd = <int, int>{};
-    for (var h = 0; h < 24; h++) hourProd[h] = 0;
+    for (var h = 0; h < 24; h++) {
+      hourProd[h] = 0;
+    }
     for (final s in sessions) {
       final cat = AppCategoryExtension.fromAppName(s.appName);
       final isProductive =

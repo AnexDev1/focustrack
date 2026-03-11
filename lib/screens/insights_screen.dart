@@ -433,7 +433,7 @@ class _FocusCard extends StatelessWidget {
                   ),
                   Center(
                     child: Text(
-                      '${multitask.score.toStringAsFixed(0)}',
+                      multitask.score.toStringAsFixed(0),
                       style: Theme.of(context).textTheme.headlineMedium
                           ?.copyWith(
                             fontWeight: FontWeight.bold,
