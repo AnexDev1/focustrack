@@ -104,6 +104,16 @@ class $AppUsageSessionsTable extends AppUsageSessions
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+    'source',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('desktop'),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -114,6 +124,7 @@ class $AppUsageSessionsTable extends AppUsageSessions
     durationMs,
     idleTimeMs,
     isActive,
+    source,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -184,6 +195,12 @@ class $AppUsageSessionsTable extends AppUsageSessions
         isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
       );
     }
+    if (data.containsKey('source')) {
+      context.handle(
+        _sourceMeta,
+        source.isAcceptableOrUnknown(data['source']!, _sourceMeta),
+      );
+    }
     return context;
   }
 
@@ -225,6 +242,10 @@ class $AppUsageSessionsTable extends AppUsageSessions
         DriftSqlType.bool,
         data['${effectivePrefix}is_active'],
       )!,
+      source: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source'],
+      )!,
     );
   }
 
@@ -243,6 +264,7 @@ class AppUsageSession extends DataClass implements Insertable<AppUsageSession> {
   final int durationMs;
   final int idleTimeMs;
   final bool isActive;
+  final String source;
   const AppUsageSession({
     required this.id,
     required this.appName,
@@ -252,6 +274,7 @@ class AppUsageSession extends DataClass implements Insertable<AppUsageSession> {
     required this.durationMs,
     required this.idleTimeMs,
     required this.isActive,
+    required this.source,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -268,6 +291,7 @@ class AppUsageSession extends DataClass implements Insertable<AppUsageSession> {
     map['duration_ms'] = Variable<int>(durationMs);
     map['idle_time_ms'] = Variable<int>(idleTimeMs);
     map['is_active'] = Variable<bool>(isActive);
+    map['source'] = Variable<String>(source);
     return map;
   }
 
@@ -285,6 +309,7 @@ class AppUsageSession extends DataClass implements Insertable<AppUsageSession> {
       durationMs: Value(durationMs),
       idleTimeMs: Value(idleTimeMs),
       isActive: Value(isActive),
+      source: Value(source),
     );
   }
 
@@ -302,6 +327,7 @@ class AppUsageSession extends DataClass implements Insertable<AppUsageSession> {
       durationMs: serializer.fromJson<int>(json['durationMs']),
       idleTimeMs: serializer.fromJson<int>(json['idleTimeMs']),
       isActive: serializer.fromJson<bool>(json['isActive']),
+      source: serializer.fromJson<String>(json['source']),
     );
   }
   @override
@@ -316,6 +342,7 @@ class AppUsageSession extends DataClass implements Insertable<AppUsageSession> {
       'durationMs': serializer.toJson<int>(durationMs),
       'idleTimeMs': serializer.toJson<int>(idleTimeMs),
       'isActive': serializer.toJson<bool>(isActive),
+      'source': serializer.toJson<String>(source),
     };
   }
 
@@ -328,6 +355,7 @@ class AppUsageSession extends DataClass implements Insertable<AppUsageSession> {
     int? durationMs,
     int? idleTimeMs,
     bool? isActive,
+    String? source,
   }) => AppUsageSession(
     id: id ?? this.id,
     appName: appName ?? this.appName,
@@ -337,6 +365,7 @@ class AppUsageSession extends DataClass implements Insertable<AppUsageSession> {
     durationMs: durationMs ?? this.durationMs,
     idleTimeMs: idleTimeMs ?? this.idleTimeMs,
     isActive: isActive ?? this.isActive,
+    source: source ?? this.source,
   );
   AppUsageSession copyWithCompanion(AppUsageSessionsCompanion data) {
     return AppUsageSession(
@@ -354,6 +383,7 @@ class AppUsageSession extends DataClass implements Insertable<AppUsageSession> {
           ? data.idleTimeMs.value
           : this.idleTimeMs,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      source: data.source.present ? data.source.value : this.source,
     );
   }
 
@@ -367,7 +397,8 @@ class AppUsageSession extends DataClass implements Insertable<AppUsageSession> {
           ..write('endTime: $endTime, ')
           ..write('durationMs: $durationMs, ')
           ..write('idleTimeMs: $idleTimeMs, ')
-          ..write('isActive: $isActive')
+          ..write('isActive: $isActive, ')
+          ..write('source: $source')
           ..write(')'))
         .toString();
   }
@@ -382,6 +413,7 @@ class AppUsageSession extends DataClass implements Insertable<AppUsageSession> {
     durationMs,
     idleTimeMs,
     isActive,
+    source,
   );
   @override
   bool operator ==(Object other) =>
@@ -394,7 +426,8 @@ class AppUsageSession extends DataClass implements Insertable<AppUsageSession> {
           other.endTime == this.endTime &&
           other.durationMs == this.durationMs &&
           other.idleTimeMs == this.idleTimeMs &&
-          other.isActive == this.isActive);
+          other.isActive == this.isActive &&
+          other.source == this.source);
 }
 
 class AppUsageSessionsCompanion extends UpdateCompanion<AppUsageSession> {
@@ -406,6 +439,7 @@ class AppUsageSessionsCompanion extends UpdateCompanion<AppUsageSession> {
   final Value<int> durationMs;
   final Value<int> idleTimeMs;
   final Value<bool> isActive;
+  final Value<String> source;
   const AppUsageSessionsCompanion({
     this.id = const Value.absent(),
     this.appName = const Value.absent(),
@@ -415,6 +449,7 @@ class AppUsageSessionsCompanion extends UpdateCompanion<AppUsageSession> {
     this.durationMs = const Value.absent(),
     this.idleTimeMs = const Value.absent(),
     this.isActive = const Value.absent(),
+    this.source = const Value.absent(),
   });
   AppUsageSessionsCompanion.insert({
     this.id = const Value.absent(),
@@ -425,6 +460,7 @@ class AppUsageSessionsCompanion extends UpdateCompanion<AppUsageSession> {
     required int durationMs,
     this.idleTimeMs = const Value.absent(),
     this.isActive = const Value.absent(),
+    this.source = const Value.absent(),
   }) : appName = Value(appName),
        startTime = Value(startTime),
        durationMs = Value(durationMs);
@@ -437,6 +473,7 @@ class AppUsageSessionsCompanion extends UpdateCompanion<AppUsageSession> {
     Expression<int>? durationMs,
     Expression<int>? idleTimeMs,
     Expression<bool>? isActive,
+    Expression<String>? source,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -447,6 +484,7 @@ class AppUsageSessionsCompanion extends UpdateCompanion<AppUsageSession> {
       if (durationMs != null) 'duration_ms': durationMs,
       if (idleTimeMs != null) 'idle_time_ms': idleTimeMs,
       if (isActive != null) 'is_active': isActive,
+      if (source != null) 'source': source,
     });
   }
 
@@ -459,6 +497,7 @@ class AppUsageSessionsCompanion extends UpdateCompanion<AppUsageSession> {
     Value<int>? durationMs,
     Value<int>? idleTimeMs,
     Value<bool>? isActive,
+    Value<String>? source,
   }) {
     return AppUsageSessionsCompanion(
       id: id ?? this.id,
@@ -469,6 +508,7 @@ class AppUsageSessionsCompanion extends UpdateCompanion<AppUsageSession> {
       durationMs: durationMs ?? this.durationMs,
       idleTimeMs: idleTimeMs ?? this.idleTimeMs,
       isActive: isActive ?? this.isActive,
+      source: source ?? this.source,
     );
   }
 
@@ -499,6 +539,9 @@ class AppUsageSessionsCompanion extends UpdateCompanion<AppUsageSession> {
     if (isActive.present) {
       map['is_active'] = Variable<bool>(isActive.value);
     }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
     return map;
   }
 
@@ -512,7 +555,8 @@ class AppUsageSessionsCompanion extends UpdateCompanion<AppUsageSession> {
           ..write('endTime: $endTime, ')
           ..write('durationMs: $durationMs, ')
           ..write('idleTimeMs: $idleTimeMs, ')
-          ..write('isActive: $isActive')
+          ..write('isActive: $isActive, ')
+          ..write('source: $source')
           ..write(')'))
         .toString();
   }
@@ -541,6 +585,7 @@ typedef $$AppUsageSessionsTableCreateCompanionBuilder =
       required int durationMs,
       Value<int> idleTimeMs,
       Value<bool> isActive,
+      Value<String> source,
     });
 typedef $$AppUsageSessionsTableUpdateCompanionBuilder =
     AppUsageSessionsCompanion Function({
@@ -552,6 +597,7 @@ typedef $$AppUsageSessionsTableUpdateCompanionBuilder =
       Value<int> durationMs,
       Value<int> idleTimeMs,
       Value<bool> isActive,
+      Value<String> source,
     });
 
 class $$AppUsageSessionsTableFilterComposer
@@ -600,6 +646,11 @@ class $$AppUsageSessionsTableFilterComposer
 
   ColumnFilters<bool> get isActive => $composableBuilder(
     column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get source => $composableBuilder(
+    column: $table.source,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -652,6 +703,11 @@ class $$AppUsageSessionsTableOrderingComposer
     column: $table.isActive,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppUsageSessionsTableAnnotationComposer
@@ -692,6 +748,9 @@ class $$AppUsageSessionsTableAnnotationComposer
 
   GeneratedColumn<bool> get isActive =>
       $composableBuilder(column: $table.isActive, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
 }
 
 class $$AppUsageSessionsTableTableManager
@@ -739,6 +798,7 @@ class $$AppUsageSessionsTableTableManager
                 Value<int> durationMs = const Value.absent(),
                 Value<int> idleTimeMs = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
+                Value<String> source = const Value.absent(),
               }) => AppUsageSessionsCompanion(
                 id: id,
                 appName: appName,
@@ -748,6 +808,7 @@ class $$AppUsageSessionsTableTableManager
                 durationMs: durationMs,
                 idleTimeMs: idleTimeMs,
                 isActive: isActive,
+                source: source,
               ),
           createCompanionCallback:
               ({
@@ -759,6 +820,7 @@ class $$AppUsageSessionsTableTableManager
                 required int durationMs,
                 Value<int> idleTimeMs = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
+                Value<String> source = const Value.absent(),
               }) => AppUsageSessionsCompanion.insert(
                 id: id,
                 appName: appName,
@@ -768,6 +830,7 @@ class $$AppUsageSessionsTableTableManager
                 durationMs: durationMs,
                 idleTimeMs: idleTimeMs,
                 isActive: isActive,
+                source: source,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

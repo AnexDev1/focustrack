@@ -1,0 +1,373 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io' show Platform;
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:focustrack/services/android_usage_service.dart';
+import 'package:focustrack/services/notification_service.dart';
+
+/// Represents a time limit set on an app.
+class AppLimit {
+  final String appName;
+  final int limitMinutes; // daily limit in minutes
+  final bool enabled;
+
+  AppLimit({
+    required this.appName,
+    required this.limitMinutes,
+    this.enabled = true,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'appName': appName,
+    'limitMinutes': limitMinutes,
+    'enabled': enabled,
+  };
+
+  factory AppLimit.fromJson(Map<String, dynamic> json) => AppLimit(
+    appName: json['appName'] as String,
+    limitMinutes: json['limitMinutes'] as int,
+    enabled: json['enabled'] as bool? ?? true,
+  );
+}
+
+/// Tracks app limits and checks usage against them.
+class AppLimitsService {
+  static const _limitsKey = 'app_limits';
+  static const _dailyGoalKey = 'daily_screen_time_goal';
+  static const _notifiedAppsKey = 'notified_limit_apps';
+  static const _notifiedMilestonesKey = 'notified_milestones';
+  static const _channel = MethodChannel('com.focustrack/usage_stats');
+
+  Timer? _checkTimer;
+
+  /// Load all saved app limits.
+  static Future<List<AppLimit>> getLimits() async {
+    final prefs = await SharedPreferences.getInstance();
+    final json = prefs.getString(_limitsKey);
+    if (json == null) return [];
+    final list = jsonDecode(json) as List<dynamic>;
+    return list
+        .map((e) => AppLimit.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Save all app limits.
+  static Future<void> saveLimits(List<AppLimit> limits) async {
+    final prefs = await SharedPreferences.getInstance();
+    final json = jsonEncode(limits.map((l) => l.toJson()).toList());
+    await prefs.setString(_limitsKey, json);
+  }
+
+  /// Add or update a limit for a specific app.
+  static Future<void> setLimit(String appName, int limitMinutes) async {
+    final limits = await getLimits();
+    final index = limits.indexWhere((l) => l.appName == appName);
+    if (index >= 0) {
+      limits[index] = AppLimit(
+        appName: appName,
+        limitMinutes: limitMinutes,
+        enabled: true,
+      );
+    } else {
+      limits.add(AppLimit(appName: appName, limitMinutes: limitMinutes));
+    }
+    await saveLimits(limits);
+  }
+
+  /// Remove a limit for a specific app.
+  static Future<void> removeLimit(String appName) async {
+    final limits = await getLimits();
+    limits.removeWhere((l) => l.appName == appName);
+    await saveLimits(limits);
+  }
+
+  /// Toggle enable/disable of a limit.
+  static Future<void> toggleLimit(String appName, bool enabled) async {
+    final limits = await getLimits();
+    final index = limits.indexWhere((l) => l.appName == appName);
+    if (index >= 0) {
+      limits[index] = AppLimit(
+        appName: limits[index].appName,
+        limitMinutes: limits[index].limitMinutes,
+        enabled: enabled,
+      );
+      await saveLimits(limits);
+    }
+  }
+
+  /// Get the daily screen time goal in minutes (0 = no goal).
+  static Future<int> getDailyGoal() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_dailyGoalKey) ?? 0;
+  }
+
+  /// Set the daily screen time goal in minutes.
+  static Future<void> setDailyGoal(int minutes) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_dailyGoalKey, minutes);
+  }
+
+  /// Clear the "already notified" set (call at midnight or on new day).
+  static Future<void> resetNotifications() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_notifiedAppsKey);
+    await prefs.remove(_notifiedMilestonesKey);
+  }
+
+  /// Check all limits against current usage and fire notifications.
+  Future<void> checkLimits() async {
+    if (!Platform.isAndroid) return;
+    final hasPermission = await AndroidUsageStatsService.hasPermission();
+    if (!hasPermission) return;
+
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final stats = await AndroidUsageStatsService.getUsageStats(startOfDay, now);
+
+    final limits = await getLimits();
+    final prefs = await SharedPreferences.getInstance();
+
+    // Per-app limits
+    final notifiedApps = (prefs.getStringList(_notifiedAppsKey) ?? []).toSet();
+
+    final blockedPackages = <String>[];
+
+    for (final limit in limits) {
+      if (!limit.enabled) continue;
+      final stat = stats.firstWhere(
+        (s) => s.appName == limit.appName,
+        orElse: () => AndroidAppStats(
+          packageName: '',
+          appName: limit.appName,
+          totalTimeMs: 0,
+          lastTimeUsed: 0,
+        ),
+      );
+      final usedMinutes = stat.totalTimeMs ~/ 60000;
+
+      // 80% warning
+      final warningKey = '${limit.appName}_80';
+      if (usedMinutes >= (limit.limitMinutes * 0.8).round() &&
+          !notifiedApps.contains(warningKey)) {
+        await NotificationService.showLimitWarning(
+          limit.appName,
+          limit.limitMinutes,
+          usedMinutes,
+        );
+        notifiedApps.add(warningKey);
+      }
+
+      // 100% reached
+      final reachedKey = '${limit.appName}_100';
+      if (usedMinutes >= limit.limitMinutes) {
+        if (!notifiedApps.contains(reachedKey)) {
+          await NotificationService.showLimitReached(
+            limit.appName,
+            limit.limitMinutes,
+          );
+          notifiedApps.add(reachedKey);
+        }
+        // Add to blocked list using package name
+        if (stat.packageName.isNotEmpty) {
+          blockedPackages.add(stat.packageName);
+        }
+      }
+    }
+
+    // Update app blocker with exceeded apps
+    if (blockedPackages.isNotEmpty) {
+      await _startAppBlocker(blockedPackages);
+    } else {
+      await _stopAppBlocker();
+    }
+
+    await prefs.setStringList(_notifiedAppsKey, notifiedApps.toList());
+
+    // Daily screen time milestones
+    final totalMs = stats.fold<int>(0, (s, st) => s + st.totalTimeMs);
+    final totalMinutes = totalMs ~/ 60000;
+    final notifiedMilestones =
+        (prefs.getStringList(_notifiedMilestonesKey) ?? []).toSet();
+
+    // Milestone notifications at 1h, 2h, 4h, 6h, 8h
+    for (final hourMark in [60, 120, 240, 360, 480]) {
+      final key = 'milestone_$hourMark';
+      if (totalMinutes >= hourMark && !notifiedMilestones.contains(key)) {
+        await NotificationService.showScreenTimeMilestone(
+          hourMark ~/ 60,
+          totalMinutes,
+        );
+        notifiedMilestones.add(key);
+      }
+    }
+
+    // Daily goal check
+    final dailyGoal = await getDailyGoal();
+    if (dailyGoal > 0 && totalMinutes >= dailyGoal) {
+      final goalKey = 'daily_goal';
+      if (!notifiedMilestones.contains(goalKey)) {
+        await NotificationService.showDailyGoalReached(dailyGoal);
+        notifiedMilestones.add(goalKey);
+      }
+    }
+
+    await prefs.setStringList(
+      _notifiedMilestonesKey,
+      notifiedMilestones.toList(),
+    );
+  }
+
+  /// Start periodic limit checking (every 1 minute).
+  void startMonitoring() {
+    _checkTimer?.cancel();
+    checkLimits(); // immediate check
+    _checkTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => checkLimits(),
+    );
+  }
+
+  void stopMonitoring() {
+    _checkTimer?.cancel();
+    _checkTimer = null;
+    _stopAppBlocker();
+  }
+
+  /// Start the app blocker service with the given package names.
+  static Future<void> _startAppBlocker(List<String> packageNames) async {
+    if (!Platform.isAndroid || packageNames.isEmpty) return;
+    try {
+      await _channel.invokeMethod('startAppBlocker', {
+        'blockedApps': packageNames,
+      });
+    } on PlatformException {
+      // ignore
+    }
+  }
+
+  /// Stop the app blocker service.
+  static Future<void> _stopAppBlocker() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _channel.invokeMethod('stopAppBlocker');
+    } on PlatformException {
+      // ignore
+    }
+  }
+
+  /// Update the list of blocked apps in the running service.
+  static Future<void> _updateBlockedApps(List<String> packageNames) async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _channel.invokeMethod('updateBlockedApps', {
+        'blockedApps': packageNames,
+      });
+    } on PlatformException {
+      // ignore
+    }
+  }
+
+  /// Immediately re-evaluate which apps are blocked and update AppBlockerService.
+  /// Call this after any limit change (add/remove/toggle) for instant effect.
+  static Future<void> syncBlockerNow() async {
+    if (!Platform.isAndroid) return;
+    final hasPermission = await AndroidUsageStatsService.hasPermission();
+    if (!hasPermission) return;
+
+    final limits = await getLimits();
+    final enabledLimits = limits.where((l) => l.enabled).toList();
+    if (enabledLimits.isEmpty) {
+      await _stopAppBlocker();
+      return;
+    }
+
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final stats = await AndroidUsageStatsService.getUsageStats(startOfDay, now);
+
+    final blockedPackages = <String>[];
+    for (final limit in enabledLimits) {
+      final stat = stats.firstWhere(
+        (s) => s.appName == limit.appName,
+        orElse: () => AndroidAppStats(
+          packageName: '',
+          appName: limit.appName,
+          totalTimeMs: 0,
+          lastTimeUsed: 0,
+        ),
+      );
+      final usedMinutes = stat.totalTimeMs ~/ 60000;
+      if (usedMinutes >= limit.limitMinutes && stat.packageName.isNotEmpty) {
+        blockedPackages.add(stat.packageName);
+      }
+    }
+
+    if (blockedPackages.isNotEmpty) {
+      await _startAppBlocker(blockedPackages);
+    } else {
+      await _stopAppBlocker();
+    }
+  }
+
+  /// Get usage status for each limited app (for UI display).
+  static Future<List<AppLimitStatus>> getLimitStatuses() async {
+    if (!Platform.isAndroid) return [];
+
+    final limits = await getLimits();
+    if (limits.isEmpty) return [];
+
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final stats = await AndroidUsageStatsService.getUsageStats(startOfDay, now);
+
+    return limits.map((limit) {
+      final stat = stats.firstWhere(
+        (s) => s.appName == limit.appName,
+        orElse: () => AndroidAppStats(
+          packageName: '',
+          appName: limit.appName,
+          totalTimeMs: 0,
+          lastTimeUsed: 0,
+        ),
+      );
+      final usedMinutes = stat.totalTimeMs ~/ 60000;
+      return AppLimitStatus(
+        limit: limit,
+        usedMinutes: usedMinutes,
+        exceeded: usedMinutes >= limit.limitMinutes,
+        percentage: limit.limitMinutes > 0
+            ? (usedMinutes / limit.limitMinutes * 100).clamp(0, 100)
+            : 0,
+      );
+    }).toList();
+  }
+}
+
+/// Status of an app limit including current usage.
+class AppLimitStatus {
+  final AppLimit limit;
+  final int usedMinutes;
+  final bool exceeded;
+  final double percentage;
+
+  AppLimitStatus({
+    required this.limit,
+    required this.usedMinutes,
+    required this.exceeded,
+    required this.percentage,
+  });
+}
+
+/// Riverpod provider for app limits service.
+final appLimitsServiceProvider = Provider<AppLimitsService>((ref) {
+  return AppLimitsService();
+});
+
+/// Provider for current limit statuses (refreshable).
+final appLimitStatusesProvider = FutureProvider<List<AppLimitStatus>>((
+  ref,
+) async {
+  return AppLimitsService.getLimitStatuses();
+});

@@ -47,6 +47,50 @@ final activeSessionProvider = FutureProvider<AppUsageSession?>((ref) async {
   return database.getActiveSession();
 });
 
+// Source filter for desktop dashboard: null = combined, 'desktop', 'mobile'
+final sourceFilterProvider = StateProvider<String?>((ref) => null);
+
+// Provider for sessions filtered by source (last 24 hours)
+final filteredSessionsProvider = FutureProvider<List<AppUsageSession>>((
+  ref,
+) async {
+  final database = await ref.watch(databaseInitializerProvider.future);
+  final source = ref.watch(sourceFilterProvider);
+  final now = DateTime.now();
+  final yesterday = now.subtract(const Duration(days: 1));
+  final sessions = await database.getSessionsInDateRangeBySource(
+    yesterday,
+    now,
+    source: source,
+  );
+  if (source == null || source == 'desktop') {
+    final activeSession = await database.getActiveSession();
+    if (activeSession != null) {
+      final currentDuration = now
+          .difference(activeSession.startTime)
+          .inMilliseconds;
+      final updatedActive = activeSession.copyWith(durationMs: currentDuration);
+      final index = sessions.indexWhere((s) => s.id == activeSession.id);
+      if (index != -1) {
+        sessions[index] = updatedActive;
+      } else {
+        sessions.add(updatedActive);
+      }
+    }
+  }
+  return sessions;
+});
+
+// Provider for mobile sessions today (for desktop mobile stats card)
+final mobileSessionsProvider = FutureProvider<List<AppUsageSession>>((
+  ref,
+) async {
+  final database = await ref.watch(databaseInitializerProvider.future);
+  final now = DateTime.now();
+  final startOfDay = DateTime(now.year, now.month, now.day);
+  return database.getMobileSessionsInDateRange(startOfDay, now);
+});
+
 // Provider for sessions in the last 24 hours
 final recentSessionsProvider = FutureProvider<List<AppUsageSession>>((
   ref,

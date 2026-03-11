@@ -13,7 +13,7 @@
 2. Compile the installer:
    `& "C:\Users\hp\Tools\Inno Setup 6\ISCC.exe" installer\FocusTrack.iss`
 
-The setup executable will be written to `installer\dist\FocusTrack-Setup-0.1.0.exe`.
+The setup executable will be written to `installer\dist\FocusTrack-Setup-1.1.0.exe`.
 
 > **Note:** there is also a companion Linux packaging script.  See
 > `BUILD_LINUX_INSTALLER.md` if you'd like to build a tarball for GitHub

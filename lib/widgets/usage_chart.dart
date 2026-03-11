@@ -18,7 +18,7 @@ class _UsageChartState extends ConsumerState<UsageChart> {
   void initState() {
     super.initState();
     _timer = Timer.periodic(const Duration(seconds: 30), (_) {
-      ref.invalidate(recentSessionsProvider);
+      ref.invalidate(filteredSessionsProvider);
     });
   }
 
@@ -30,7 +30,13 @@ class _UsageChartState extends ConsumerState<UsageChart> {
 
   @override
   Widget build(BuildContext context) {
-    final sessionsAsync = ref.watch(recentSessionsProvider);
+    final sessionsAsync = ref.watch(filteredSessionsProvider);
+    final sourceFilter = ref.watch(sourceFilterProvider);
+    final sourceLabel = sourceFilter == null
+        ? 'All Sources'
+        : sourceFilter == 'desktop'
+        ? 'Desktop'
+        : 'Mobile';
 
     return sessionsAsync.when(
       data: (sessions) {
@@ -84,13 +90,13 @@ class _UsageChartState extends ConsumerState<UsageChart> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'App Usage (Last 24h)',
+                        'App Usage ($sourceLabel)',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       IconButton(
                         tooltip: 'Refresh',
                         icon: const Icon(Icons.refresh_outlined),
-                        onPressed: () => ref.refresh(recentSessionsProvider),
+                        onPressed: () => ref.refresh(filteredSessionsProvider),
                       ),
                     ],
                   ),

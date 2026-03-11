@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:focustrack/services/window_tracker.dart';
 import 'package:focustrack/providers/app_usage_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -65,8 +66,9 @@ class AppUsageService {
   }
 }
 
-// Provider for the service
-final appUsageServiceProvider = Provider<AppUsageService>((ref) {
+// Provider for the service (desktop only – on Android, tracking is handled by MobileUsageSyncService)
+final appUsageServiceProvider = Provider<AppUsageService?>((ref) {
+  if (Platform.isAndroid || Platform.isIOS) return null;
   final windowTracker = WindowTrackerImpl();
   final notifier = ref.watch(appUsageNotifierProvider.notifier);
   return AppUsageService(windowTracker, notifier);

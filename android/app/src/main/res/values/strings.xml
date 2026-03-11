@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FocusTrack</string>
+    <string name="widget_screen_time_desc">Shows today\'s total screen time and top app</string>
+    <string name="widget_focus_score_desc">Shows your current focus score</string>
+    <string name="widget_top_apps_desc">Shows your top 3 most used apps today</string>
+    <string name="widget_quick_stats_desc">Quick overview of screen time, apps, sessions and focus</string>
+</resources>

@@ -15,6 +15,8 @@ class AppUsageSessions extends Table {
   BoolColumn get isActive => boolean().withDefault(
     const Constant(false),
   )(); // to track current active session
+  TextColumn get source =>
+      text().withDefault(const Constant('desktop'))(); // 'desktop' or 'mobile'
 }
 
 @DriftDatabase(tables: [AppUsageSessions])
@@ -22,7 +24,17 @@ class AppUsageDatabase extends _$AppUsageDatabase {
   AppUsageDatabase(super.e);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onCreate: (m) => m.createAll(),
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.addColumn(appUsageSessions, appUsageSessions.source);
+      }
+    },
+  );
 
   // Insert a new session
   Future<int> insertSession(AppUsageSessionsCompanion session) {
@@ -133,5 +145,48 @@ class AppUsageDatabase extends _$AppUsageDatabase {
   // Delete all sessions
   Future<int> clearAllSessions() {
     return delete(appUsageSessions).go();
+  }
+
+  // Get sessions filtered by source ('desktop', 'mobile', or null for all)
+  Future<List<AppUsageSession>> getSessionsInDateRangeBySource(
+    DateTime start,
+    DateTime end, {
+    String? source,
+  }) {
+    final query = select(appUsageSessions)
+      ..where((tbl) => tbl.startTime.isBetweenValues(start, end));
+    if (source != null) {
+      query.where((tbl) => tbl.source.equals(source));
+    }
+    return query.get();
+  }
+
+  // Get mobile sessions for a date range
+  Future<List<AppUsageSession>> getMobileSessionsInDateRange(
+    DateTime start,
+    DateTime end,
+  ) {
+    return (select(appUsageSessions)..where(
+          (tbl) =>
+              tbl.startTime.isBetweenValues(start, end) &
+              tbl.source.equals('mobile'),
+        ))
+        .get();
+  }
+
+  // Insert a batch of mobile sessions (for sync)
+  Future<void> insertMobileSessions(
+    List<AppUsageSessionsCompanion> sessions,
+  ) async {
+    await batch((b) {
+      b.insertAll(appUsageSessions, sessions, mode: InsertMode.insertOrIgnore);
+    });
+  }
+
+  // Delete all mobile sessions
+  Future<int> clearMobileSessions() {
+    return (delete(
+      appUsageSessions,
+    )..where((tbl) => tbl.source.equals('mobile'))).go();
   }
 }

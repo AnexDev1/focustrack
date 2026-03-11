@@ -1,5 +1,5 @@
 #define MyAppName "FocusTrack"
-#define MyAppVersion "0.1.0"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "FocusTrack"
 #define MyAppExeName "focustrack.exe"
 #define MyAppId "{{2DB8EA54-4A0D-4415-B4FD-365A80333F0F}"
@@ -42,11 +42,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "Create a desktop icon"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
 
 [Files]
-Source: "..\build\windows\x64\runner\Release\focustrack.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\build\windows\x64\runner\Release\flutter_windows.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\build\windows\x64\runner\Release\sqlite3.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\build\windows\x64\runner\Release\sqlite3_flutter_libs_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\build\windows\x64\runner\Release\data\*"; DestDir: "{app}\data"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"

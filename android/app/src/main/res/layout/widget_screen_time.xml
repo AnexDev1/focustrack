@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@drawable/widget_bg">
+
+    <TextView
+        android:id="@+id/tv_today_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="0m"
+        android:textSize="32sp"
+        android:textColor="#6C63FF"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/tv_today_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="screen time today"
+        android:textSize="12sp"
+        android:textColor="#888888"
+        android:layout_marginTop="2dp" />
+
+    <TextView
+        android:id="@+id/tv_top_app"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="▸ No data"
+        android:textSize="13sp"
+        android:textColor="#AAAAAA"
+        android:layout_marginTop="8dp"
+        android:maxLines="1"
+        android:ellipsize="end" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="4dp">
+
+        <TextView
+            android:id="@+id/tv_session_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0 sessions"
+            android:textSize="11sp"
+            android:textColor="#555555" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="  •  "
+            android:textSize="11sp"
+            android:textColor="#333333" />
+
+        <TextView
+            android:id="@+id/tv_app_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0 apps"
+            android:textSize="11sp"
+            android:textColor="#555555" />
+    </LinearLayout>
+
+</LinearLayout>
