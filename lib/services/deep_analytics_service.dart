@@ -162,7 +162,7 @@ class DeepAnalyticsService {
 
   DeepAnalyticsService(this.database);
 
-  Future<DeepAnalyticsData> compute() async {
+  Future<DeepAnalyticsData> compute({String? source}) async {
     final now = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
     final todayEnd = todayStart.add(const Duration(days: 1));
@@ -173,28 +173,33 @@ class DeepAnalyticsService {
     final lastWeekStart = weekStart.subtract(const Duration(days: 7));
 
     // Fetch sessions for various ranges
-    final todaySessions = await database.getSessionsInDateRange(
+    final todaySessions = await database.getSessionsInDateRangeBySource(
       todayStart,
       todayEnd,
+      source: source,
     );
-    final yesterdaySessions = await database.getSessionsInDateRange(
+    final yesterdaySessions = await database.getSessionsInDateRangeBySource(
       yesterdayStart,
       todayStart,
+      source: source,
     );
-    final thisWeekSessions = await database.getSessionsInDateRange(
+    final thisWeekSessions = await database.getSessionsInDateRangeBySource(
       weekStart,
       todayEnd,
+      source: source,
     );
-    final lastWeekSessions = await database.getSessionsInDateRange(
+    final lastWeekSessions = await database.getSessionsInDateRangeBySource(
       lastWeekStart,
       weekStart,
+      source: source,
     );
 
     // Also fetch last 30 days for streaks
     final thirtyDaysAgo = todayStart.subtract(const Duration(days: 30));
-    final last30Sessions = await database.getSessionsInDateRange(
+    final last30Sessions = await database.getSessionsInDateRangeBySource(
       thirtyDaysAgo,
       todayEnd,
+      source: source,
     );
 
     // 1. Hourly usage

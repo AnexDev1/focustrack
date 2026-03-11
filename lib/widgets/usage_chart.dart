@@ -1,7 +1,8 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Icons;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:focustrack/providers/app_usage_provider.dart';
+import 'package:focustrack/theme/app_icons.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 class UsageChart extends ConsumerStatefulWidget {

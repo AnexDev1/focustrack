@@ -93,6 +93,7 @@ class AnalyticsService {
     AnalyticsPeriod period, {
     DateTime? customStart,
     DateTime? customEnd,
+    String? source,
   }) async {
     List<AppUsageSession> sessions;
     DateTime startDate;
@@ -100,11 +101,14 @@ class AnalyticsService {
 
     switch (period) {
       case AnalyticsPeriod.today:
-        sessions = await database.getTodaySessions();
         startDate = DateTime(endDate.year, endDate.month, endDate.day);
+        sessions = await database.getSessionsInDateRangeBySource(
+          startDate,
+          endDate,
+          source: source,
+        );
         break;
       case AnalyticsPeriod.yesterday:
-        sessions = await database.getYesterdaySessions();
         final yesterday = endDate.subtract(const Duration(days: 1));
         startDate = DateTime(yesterday.year, yesterday.month, yesterday.day);
         endDate = DateTime(
@@ -115,23 +119,37 @@ class AnalyticsService {
           59,
           59,
         );
+        sessions = await database.getSessionsInDateRangeBySource(
+          startDate,
+          endDate,
+          source: source,
+        );
         break;
       case AnalyticsPeriod.thisWeek:
-        sessions = await database.getThisWeekSessions();
         startDate = endDate.subtract(Duration(days: endDate.weekday - 1));
         startDate = DateTime(startDate.year, startDate.month, startDate.day);
+        sessions = await database.getSessionsInDateRangeBySource(
+          startDate,
+          endDate,
+          source: source,
+        );
         break;
       case AnalyticsPeriod.thisMonth:
-        sessions = await database.getThisMonthSessions();
         startDate = DateTime(endDate.year, endDate.month, 1);
+        sessions = await database.getSessionsInDateRangeBySource(
+          startDate,
+          endDate,
+          source: source,
+        );
         break;
       case AnalyticsPeriod.custom:
         if (customStart == null || customEnd == null) {
           throw ArgumentError('Custom period requires start and end dates');
         }
-        sessions = await database.getSessionsInDateRange(
+        sessions = await database.getSessionsInDateRangeBySource(
           customStart,
           customEnd,
+          source: source,
         );
         startDate = customStart;
         endDate = customEnd;

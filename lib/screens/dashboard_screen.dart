@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Icons;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:focustrack/providers/app_usage_provider.dart';
 import 'package:focustrack/providers/database_provider.dart';
 import 'package:focustrack/services/app_usage_service.dart';
 import 'package:focustrack/services/sync_server.dart';
+import 'package:focustrack/theme/app_icons.dart';
 import 'package:focustrack/theme/app_theme.dart';
 import 'package:focustrack/widgets/custom_widgets.dart';
 import 'package:focustrack/models/app_category.dart';

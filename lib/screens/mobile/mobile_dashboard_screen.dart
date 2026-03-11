@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Icons;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:focustrack/database/app_usage_database.dart';
 import 'package:focustrack/providers/app_usage_provider.dart';
 import 'package:focustrack/services/mobile_usage_sync.dart';
 import 'package:focustrack/services/android_usage_service.dart';
+import 'package:focustrack/theme/app_icons.dart';
 import 'package:focustrack/theme/app_theme.dart';
 import 'package:focustrack/models/app_category.dart';
 import 'package:focustrack/services/app_limits_service.dart';
@@ -19,10 +21,11 @@ class MobileDashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
+  static const int _sessionPageSize = 20;
+
   Timer? _refreshTimer;
-  Timer? _tickTimer;
-  int _elapsedSinceRefreshMs = 0;
-  DateTime _lastRefreshTime = DateTime.now();
+  bool _showAllApps = false;
+  int _visibleSessionCount = _sessionPageSize;
 
   @override
   void initState() {
@@ -37,19 +40,10 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
         await ref.read(mobileUsageSyncProvider).syncNow();
       }
       if (!mounted) return;
-      ref.invalidate(recentSessionsProvider);
+      ref.invalidate(todaySessionsProvider);
       ref.invalidate(todayAnalyticsProvider);
       setState(() {
-        _lastRefreshTime = DateTime.now();
-        _elapsedSinceRefreshMs = 0;
-      });
-    });
-    // 1-second tick for live screen time counter
-    _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      setState(() {
-        _elapsedSinceRefreshMs = DateTime.now()
-            .difference(_lastRefreshTime)
-            .inMilliseconds;
+        _visibleSessionCount = _sessionPageSize;
       });
     });
   }
@@ -65,7 +59,6 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
   @override
   void dispose() {
     _refreshTimer?.cancel();
-    _tickTimer?.cancel();
     super.dispose();
   }
 
@@ -80,7 +73,7 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final sessionsAsync = ref.watch(recentSessionsProvider);
+    final sessionsAsync = ref.watch(todaySessionsProvider);
     final permissionAsync = ref.watch(usagePermissionProvider);
 
     return SafeArea(
@@ -91,11 +84,11 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
           if (Platform.isAndroid) {
             await ref.read(mobileUsageSyncProvider).syncNow();
           }
-          ref.invalidate(recentSessionsProvider);
+          ref.invalidate(todaySessionsProvider);
           ref.invalidate(todayAnalyticsProvider);
+          if (!mounted) return;
           setState(() {
-            _lastRefreshTime = DateTime.now();
-            _elapsedSinceRefreshMs = 0;
+            _visibleSessionCount = _sessionPageSize;
           });
         },
         child: CustomScrollView(
@@ -107,16 +100,13 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                 child: Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        gradient: AppTheme.primaryGradient,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Icon(
-                        Icons.track_changes_rounded,
-                        color: Colors.white,
-                        size: 24,
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: Image.asset(
+                        'assets/target.png',
+                        width: 44,
+                        height: 44,
+                        fit: BoxFit.cover,
                       ),
                     ),
                     const SizedBox(width: 14),
@@ -140,10 +130,9 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
                         if (Platform.isAndroid) {
                           await ref.read(mobileUsageSyncProvider).syncNow();
                           if (!mounted) return;
-                          ref.invalidate(recentSessionsProvider);
+                          ref.invalidate(todaySessionsProvider);
                           setState(() {
-                            _lastRefreshTime = DateTime.now();
-                            _elapsedSinceRefreshMs = 0;
+                            _visibleSessionCount = _sessionPageSize;
                           });
                         }
                       },
@@ -161,8 +150,9 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
             if (Platform.isAndroid)
               permissionAsync.when(
                 data: (hasPermission) {
-                  if (hasPermission)
+                  if (hasPermission) {
                     return const SliverToBoxAdapter(child: SizedBox.shrink());
+                  }
                   return SliverToBoxAdapter(child: _buildPermissionBanner());
                 },
                 loading: () =>
@@ -216,19 +206,21 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              AppTheme.warningColor.withOpacity(0.15),
-              AppTheme.warningColor.withOpacity(0.05),
+              AppTheme.warningColor.withValues(alpha: 0.15),
+              AppTheme.warningColor.withValues(alpha: 0.05),
             ],
           ),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppTheme.warningColor.withOpacity(0.3)),
+          border: Border.all(
+            color: AppTheme.warningColor.withValues(alpha: 0.3),
+          ),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppTheme.warningColor.withOpacity(0.2),
+                color: AppTheme.warningColor.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(
@@ -287,16 +279,13 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
     );
   }
 
-  Widget _buildScreenTimeCard(List sessions) {
-    final totalTime =
-        sessions.fold<int>(
-          0,
-          (sum, session) => sum + (session.durationMs as int),
-        ) +
-        _elapsedSinceRefreshMs;
+  Widget _buildScreenTimeCard(List<AppUsageSession> sessions) {
+    final totalTime = sessions.fold<int>(
+      0,
+      (sum, session) => sum + session.durationMs,
+    );
     final hours = Duration(milliseconds: totalTime).inHours;
     final minutes = Duration(milliseconds: totalTime).inMinutes.remainder(60);
-    final seconds = Duration(milliseconds: totalTime).inSeconds.remainder(60);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -307,7 +296,7 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: AppTheme.primaryColor.withOpacity(0.3),
+              color: AppTheme.primaryColor.withValues(alpha: 0.3),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -368,33 +357,13 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
                     ),
                   ),
                 ),
-                Text(
-                  '${seconds.toString().padLeft(2, '0')}',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 36,
-                    fontWeight: FontWeight.w500,
-                    height: 1,
-                  ),
-                ),
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 6),
-                  child: Text(
-                    's',
-                    style: TextStyle(
-                      color: Colors.white38,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
               ],
             ),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
+                color: Colors.white.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
@@ -412,11 +381,7 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
     );
   }
 
-  Widget _buildQuickStatsRow(List sessions) {
-    final totalTime = sessions.fold<int>(
-      0,
-      (sum, s) => sum + (s.durationMs as int),
-    );
+  Widget _buildQuickStatsRow(List<AppUsageSession> sessions) {
     final appCount = sessions.map((s) => s.appName).toSet().length;
     final focusScore = _calculateFocusScore(sessions);
 
@@ -466,14 +431,14 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
       decoration: BoxDecoration(
         color: AppTheme.surfaceColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.06)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       child: Column(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
+              color: color.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: color, size: 20),
@@ -493,10 +458,10 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
     );
   }
 
-  Widget _buildUsagePieChart(List sessions) {
+  Widget _buildUsagePieChart(List<AppUsageSession> sessions) {
     final appUsage = <String, int>{};
     for (final s in sessions) {
-      appUsage[s.appName] = (appUsage[s.appName] ?? 0) + s.durationMs as int;
+      appUsage[s.appName] = (appUsage[s.appName] ?? 0) + s.durationMs;
     }
     if (appUsage.isEmpty) return const SizedBox.shrink();
 
@@ -522,7 +487,7 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
         decoration: BoxDecoration(
           color: AppTheme.surfaceColor,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.06)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -609,10 +574,10 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
     );
   }
 
-  Widget _buildTopAppsCard(List sessions) {
+  Widget _buildTopAppsCard(List<AppUsageSession> sessions) {
     final appUsage = <String, int>{};
     for (final s in sessions) {
-      appUsage[s.appName] = (appUsage[s.appName] ?? 0) + s.durationMs as int;
+      appUsage[s.appName] = (appUsage[s.appName] ?? 0) + s.durationMs;
     }
     if (appUsage.isEmpty) {
       return Padding(
@@ -638,7 +603,7 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
             decoration: BoxDecoration(
               color: AppTheme.surfaceColor,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.06)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -652,6 +617,16 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
                       ),
                     ),
                     const Spacer(),
+                    if (sorted.length > 5)
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _showAllApps = !_showAllApps;
+                          });
+                        },
+                        child: Text(_showAllApps ? 'Show less' : 'Show all'),
+                      ),
+                    if (sorted.length > 5) const SizedBox(width: 8),
                     Text(
                       '${sorted.length} apps',
                       style: Theme.of(context).textTheme.bodySmall,
@@ -659,7 +634,7 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                ...sorted.take(5).map((entry) {
+                ...sorted.take(_showAllApps ? sorted.length : 5).map((entry) {
                   final pct = totalTime > 0
                       ? (entry.value / totalTime * 100)
                       : 0.0;
@@ -686,8 +661,8 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
                           height: 44,
                           decoration: BoxDecoration(
                             color: limitExceeded
-                                ? AppTheme.errorColor.withOpacity(0.15)
-                                : color.withOpacity(0.15),
+                                ? AppTheme.errorColor.withValues(alpha: 0.15)
+                                : color.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Center(
@@ -755,8 +730,10 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
                                 child: LinearProgressIndicator(
                                   value: pct / 100,
                                   backgroundColor: limitExceeded
-                                      ? AppTheme.errorColor.withOpacity(0.12)
-                                      : color.withOpacity(0.12),
+                                      ? AppTheme.errorColor.withValues(
+                                          alpha: 0.12,
+                                        )
+                                      : color.withValues(alpha: 0.12),
                                   valueColor: AlwaysStoppedAnimation<Color>(
                                     limitExceeded ? AppTheme.errorColor : color,
                                   ),
@@ -798,11 +775,15 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
     );
   }
 
-  Widget _buildRecentSessionsCard(List sessions) {
+  Widget _buildRecentSessionsCard(List<AppUsageSession> sessions) {
     if (sessions.isEmpty) return const SizedBox.shrink();
 
-    final sorted = List.from(sessions)
+    final sorted = List<AppUsageSession>.from(sessions)
       ..sort((a, b) => b.startTime.compareTo(a.startTime));
+    final visibleCount = _visibleSessionCount < sorted.length
+        ? _visibleSessionCount
+        : sorted.length;
+    final remainingCount = sorted.length - visibleCount;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -811,7 +792,7 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
         decoration: BoxDecoration(
           color: AppTheme.surfaceColor,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.06)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -819,7 +800,7 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
             Row(
               children: [
                 Text(
-                  'Recent Activity',
+                  'Recent Sessions',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -832,7 +813,7 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            ...sorted.take(8).map((session) {
+            ...sorted.take(visibleCount).map((session) {
               final category = AppCategoryExtension.fromAppName(
                 session.appName,
               );
@@ -846,7 +827,7 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
                     vertical: 12,
                   ),
                   decoration: BoxDecoration(
-                    color: AppTheme.cardColor.withOpacity(0.5),
+                    color: AppTheme.cardColor.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(12),
                     border: Border(left: BorderSide(color: color, width: 3)),
                   ),
@@ -883,6 +864,24 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
                 ),
               );
             }),
+            if (remainingCount > 0) ...[
+              const SizedBox(height: 8),
+              Center(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _visibleSessionCount += _sessionPageSize;
+                    });
+                  },
+                  icon: const Icon(Icons.expand_more_rounded),
+                  label: Text(
+                    remainingCount > _sessionPageSize
+                        ? 'Load ${_sessionPageSize} more'
+                        : 'Load remaining $remainingCount',
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -895,7 +894,7 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
       decoration: BoxDecoration(
         color: AppTheme.surfaceColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.06)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       child: Column(
         children: [
@@ -917,21 +916,19 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
     return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
   }
 
-  String _calculateFocusScore(List sessions) {
+  String _calculateFocusScore(List<AppUsageSession> sessions) {
     if (sessions.isEmpty) return '0%';
     final productiveTime = sessions
         .where((s) {
           final category = AppCategoryExtension.fromAppName(s.appName);
           return category == AppCategory.work ||
               category == AppCategory.development ||
-              category == AppCategory.productivity;
+              category == AppCategory.productivity ||
+              category == AppCategory.browser;
         })
-        .fold<int>(0, (sum, s) => (sum + s.durationMs) as int);
+        .fold<int>(0, (sum, s) => sum + s.durationMs);
 
-    final totalTime = sessions.fold<int>(
-      0,
-      (sum, s) => (sum + s.durationMs) as int,
-    );
+    final totalTime = sessions.fold<int>(0, (sum, s) => sum + s.durationMs);
     if (totalTime == 0) return '0%';
     return '${((productiveTime / totalTime) * 100).toInt()}%';
   }

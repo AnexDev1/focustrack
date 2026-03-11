@@ -1,12 +1,16 @@
-import 'dart:io' show Platform;
-import 'package:flutter/material.dart';
+import 'dart:io' show Directory, File, Platform;
+import 'package:flutter/services.dart';
+import 'package:flutter/material.dart' hide Icons;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:focustrack/providers/app_usage_provider.dart';
 import 'package:focustrack/theme/app_theme.dart';
+import 'package:focustrack/theme/app_icons.dart';
 import 'package:focustrack/providers/database_provider.dart';
 import 'package:focustrack/services/android_usage_service.dart';
 import 'package:focustrack/services/sync_client.dart';
 import 'package:focustrack/services/app_limits_service.dart';
 import 'package:focustrack/services/notification_service.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MobileSettingsScreen extends ConsumerStatefulWidget {
@@ -461,6 +465,7 @@ class _MobileSettingsScreenState extends ConsumerState<MobileSettingsScreen> {
                 Container(
                   width: 40,
                   height: 40,
+                  margin: const EdgeInsets.only(right: 8),
                   decoration: BoxDecoration(
                     color: iconColor.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(10),
@@ -585,12 +590,27 @@ class _MobileSettingsScreenState extends ConsumerState<MobileSettingsScreen> {
     );
 
     if (confirmed == true && mounted) {
-      final db = ref.read(databaseProvider);
+      final db = await ref.read(databaseInitializerProvider.future);
       await db.clearAllSessions();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+      await _loadSyncSettings();
+      await _loadNotifPrefs();
+      await _checkAllPermissions();
+      ref.invalidate(allSessionsProvider);
+      ref.invalidate(recentSessionsProvider);
+      ref.invalidate(todaySessionsProvider);
+      ref.invalidate(todayAnalyticsProvider);
+      ref.invalidate(mobileTodayAnalyticsProvider);
+      ref.invalidate(mobileYesterdayAnalyticsProvider);
+      ref.invalidate(mobileWeekAnalyticsProvider);
+      ref.invalidate(mobileMonthAnalyticsProvider);
+      ref.invalidate(mobileDeepAnalyticsProvider);
+      ref.invalidate(deepAnalyticsProvider);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('All data cleared')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('All local app data cleared')),
+        );
       }
     }
   }
@@ -635,7 +655,7 @@ class _MobileSettingsScreenState extends ConsumerState<MobileSettingsScreen> {
   }
 
   Future<void> _exportData() async {
-    final db = ref.read(databaseProvider);
+    final db = await ref.read(databaseInitializerProvider.future);
     final sessions = await db.getAllSessions();
     if (sessions.isEmpty) {
       if (mounted) {
@@ -656,13 +676,26 @@ class _MobileSettingsScreenState extends ConsumerState<MobileSettingsScreen> {
       );
     }
 
-    // Copy to clipboard as simple export
-    await Future.delayed(Duration.zero); // ensure mounted check works
+    final directory = await getApplicationDocumentsDirectory();
+    final exportDirectory = Directory('${directory.path}/exports');
+    if (!await exportDirectory.exists()) {
+      await exportDirectory.create(recursive: true);
+    }
+
+    final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+    final file = File(
+      '${exportDirectory.path}/focustrack_export_$timestamp.csv',
+    );
+    await file.writeAsString(buffer.toString());
+    await Clipboard.setData(ClipboardData(text: file.path));
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Exported ${sessions.length} sessions'),
-          duration: const Duration(seconds: 2),
+          content: Text(
+            'Exported ${sessions.length} sessions to ${file.path} and copied the path',
+          ),
+          duration: const Duration(seconds: 4),
         ),
       );
     }

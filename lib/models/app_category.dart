@@ -126,6 +126,22 @@ extension AppCategoryExtension on AppCategory {
       return AppCategory.design;
     }
 
+    // Productivity
+    if (name.contains('notion') ||
+        name.contains('trello') ||
+        name.contains('todoist') ||
+        name.contains('asana') ||
+        name.contains('clickup') ||
+        name.contains('jira') ||
+        name.contains('calendar') ||
+        name.contains('keep') ||
+        name.contains('drive') ||
+        name.contains('onenote') ||
+        name.contains('evernote') ||
+        name.contains('planner')) {
+      return AppCategory.productivity;
+    }
+
     // Browsers
     if (name.contains('chrome') ||
         name.contains('firefox') ||

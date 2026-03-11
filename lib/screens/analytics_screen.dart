@@ -1,7 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Icons;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:focustrack/providers/app_usage_provider.dart';
+import 'package:focustrack/providers/database_provider.dart';
 import 'package:focustrack/services/analytics_service.dart';
+import 'package:focustrack/theme/app_icons.dart';
 import 'package:focustrack/theme/app_theme.dart';
 import 'package:focustrack/widgets/custom_widgets.dart';
 import 'package:focustrack/models/app_category.dart';
@@ -63,7 +65,8 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
 
   Future<void> _exportData(AnalyticsData data, String format) async {
     try {
-      final service = ref.read(analyticsServiceProvider);
+      final database = await ref.read(databaseInitializerProvider.future);
+      final service = AnalyticsService(database);
       String path;
 
       if (format == 'json') {

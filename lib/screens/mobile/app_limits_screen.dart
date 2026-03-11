@@ -1,8 +1,9 @@
 import 'dart:io' show Platform;
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Icons;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:focustrack/services/app_limits_service.dart';
 import 'package:focustrack/services/android_usage_service.dart';
+import 'package:focustrack/theme/app_icons.dart';
 import 'package:focustrack/theme/app_theme.dart';
 
 class AppLimitsScreen extends ConsumerStatefulWidget {

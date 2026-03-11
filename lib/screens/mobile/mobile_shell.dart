@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Icons;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:focustrack/screens/mobile/mobile_dashboard_screen.dart';
@@ -6,6 +6,7 @@ import 'package:focustrack/screens/mobile/mobile_analytics_screen.dart';
 import 'package:focustrack/screens/mobile/mobile_insights_screen.dart';
 import 'package:focustrack/screens/mobile/mobile_settings_screen.dart';
 import 'package:focustrack/screens/mobile/app_limits_screen.dart';
+import 'package:focustrack/theme/app_icons.dart';
 import 'package:focustrack/theme/app_theme.dart';
 
 class MobileShell extends ConsumerStatefulWidget {
@@ -50,15 +51,29 @@ class _MobileShellState extends ConsumerState<MobileShell> {
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildNavItem(0, Icons.dashboard_rounded, 'Dashboard'),
-                _buildNavItem(1, Icons.bar_chart_rounded, 'Analytics'),
-                _buildNavItem(2, Icons.timer_rounded, 'Limits'),
-                _buildNavItem(3, Icons.auto_awesome_rounded, 'Insights'),
-                _buildNavItem(4, Icons.settings_rounded, 'Settings'),
+                Expanded(
+                  child: _buildNavItem(0, Icons.dashboard_rounded, 'Dashboard'),
+                ),
+                Expanded(
+                  child: _buildNavItem(1, Icons.bar_chart_rounded, 'Analytics'),
+                ),
+                Expanded(
+                  child: _buildNavItem(2, Icons.timer_rounded, 'Limits'),
+                ),
+                Expanded(
+                  child: _buildNavItem(
+                    3,
+                    Icons.auto_awesome_rounded,
+                    'Insights',
+                  ),
+                ),
+                Expanded(
+                  child: _buildNavItem(4, Icons.settings_rounded, 'Settings'),
+                ),
               ],
             ),
           ),
@@ -76,7 +91,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
               ? AppTheme.primaryColor.withOpacity(0.12)
@@ -85,15 +100,22 @@ class _MobileShellState extends ConsumerState<MobileShell> {
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Icon(icon, color: color, size: 24),
+            Icon(icon, color: color, size: 22),
             const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                maxLines: 1,
+                softWrap: false,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                ),
               ),
             ),
           ],

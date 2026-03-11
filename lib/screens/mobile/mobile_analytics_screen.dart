@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Icons;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:focustrack/providers/app_usage_provider.dart';
 import 'package:focustrack/services/analytics_service.dart';
+import 'package:focustrack/theme/app_icons.dart';
 import 'package:focustrack/theme/app_theme.dart';
 import 'package:focustrack/models/app_category.dart';
 
@@ -29,15 +30,15 @@ class _MobileAnalyticsScreenState extends ConsumerState<MobileAnalyticsScreen> {
   AsyncValue<AnalyticsData> _getProvider() {
     switch (_selectedPeriod) {
       case AnalyticsPeriod.today:
-        return ref.watch(todayAnalyticsProvider);
+        return ref.watch(mobileTodayAnalyticsProvider);
       case AnalyticsPeriod.yesterday:
-        return ref.watch(yesterdayAnalyticsProvider);
+        return ref.watch(mobileYesterdayAnalyticsProvider);
       case AnalyticsPeriod.thisWeek:
-        return ref.watch(weekAnalyticsProvider);
+        return ref.watch(mobileWeekAnalyticsProvider);
       case AnalyticsPeriod.thisMonth:
-        return ref.watch(monthAnalyticsProvider);
+        return ref.watch(mobileMonthAnalyticsProvider);
       default:
-        return ref.watch(todayAnalyticsProvider);
+        return ref.watch(mobileTodayAnalyticsProvider);
     }
   }
 
@@ -154,7 +155,7 @@ class _MobileAnalyticsScreenState extends ConsumerState<MobileAnalyticsScreen> {
                 child: _statCard(
                   'Total Time',
                   _formatDuration(data.totalDuration),
-                  Icons.access_time_rounded,
+                  Icons.schedule_rounded,
                   AppTheme.primaryColor,
                 ),
               ),
@@ -163,7 +164,7 @@ class _MobileAnalyticsScreenState extends ConsumerState<MobileAnalyticsScreen> {
                 child: _statCard(
                   'Sessions',
                   '${data.totalSessions}',
-                  Icons.splitscreen_rounded,
+                  Icons.view_timeline_rounded,
                   AppTheme.accentColor,
                 ),
               ),
@@ -176,7 +177,7 @@ class _MobileAnalyticsScreenState extends ConsumerState<MobileAnalyticsScreen> {
                 child: _statCard(
                   'Apps Used',
                   '${data.totalApps}',
-                  Icons.apps_rounded,
+                  Icons.grid_view_rounded,
                   AppTheme.successColor,
                 ),
               ),
@@ -185,7 +186,7 @@ class _MobileAnalyticsScreenState extends ConsumerState<MobileAnalyticsScreen> {
                 child: _statCard(
                   'Focus Score',
                   data.focusScore,
-                  Icons.psychology_rounded,
+                  Icons.insights_rounded,
                   AppTheme.warningColor,
                 ),
               ),

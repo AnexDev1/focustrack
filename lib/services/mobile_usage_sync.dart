@@ -38,8 +38,14 @@ class MobileUsageSyncService {
     final events = await AndroidUsageStatsService.getTodayEvents();
     if (events.isEmpty) return;
 
-    // Get existing sessions for today to deduplicate/update
-    final existingSessions = await _database.getTodaySessions();
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
+
+    // Only compare against existing mobile sessions for today.
+    final existingSessions = await _database.getMobileSessionsInDateRange(
+      startOfDay,
+      now,
+    );
 
     for (final event in events) {
       // Skip our own app
@@ -67,6 +73,7 @@ class MobileUsageSyncService {
             existing.copyWith(
               endTime: Value(endDt),
               durationMs: event.durationMs,
+              source: 'mobile',
             ),
           );
           // Keep local list in sync so we don't re-match on a second pass
@@ -75,8 +82,11 @@ class MobileUsageSyncService {
             existingSessions[idx] = existing.copyWith(
               endTime: Value(endDt),
               durationMs: event.durationMs,
+              source: 'mobile',
             );
           }
+        } else if (existing.source != 'mobile') {
+          await _database.updateSession(existing.copyWith(source: 'mobile'));
         }
       } else if (event.durationMs > 1000) {
         // New session — insert it
@@ -88,6 +98,7 @@ class MobileUsageSyncService {
           durationMs: Value(event.durationMs),
           idleTimeMs: const Value(0),
           isActive: const Value(false),
+          source: const Value('mobile'),
         );
         await _database.insertSession(session);
       }

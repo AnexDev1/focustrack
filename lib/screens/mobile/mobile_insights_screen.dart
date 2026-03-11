@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Icons;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:focustrack/providers/app_usage_provider.dart';
 import 'package:focustrack/services/deep_analytics_service.dart';
+import 'package:focustrack/theme/app_icons.dart';
 import 'package:focustrack/theme/app_theme.dart';
 import 'package:focustrack/models/app_category.dart';
 
@@ -11,7 +12,7 @@ class MobileInsightsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final analyticsAsync = ref.watch(deepAnalyticsProvider);
+    final analyticsAsync = ref.watch(mobileDeepAnalyticsProvider);
 
     return SafeArea(
       child: analyticsAsync.when(

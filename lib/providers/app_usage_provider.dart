@@ -5,34 +5,59 @@ import 'package:focustrack/services/analytics_service.dart';
 import 'package:focustrack/services/deep_analytics_service.dart';
 import 'package:drift/drift.dart';
 
-// Provider for analytics service
-final analyticsServiceProvider = Provider<AnalyticsService>((ref) {
-  final database = ref.watch(databaseInitializerProvider).value!;
-  return AnalyticsService(database);
-});
-
 // Provider for today's analytics
 final todayAnalyticsProvider = FutureProvider<AnalyticsData>((ref) async {
-  final service = ref.watch(analyticsServiceProvider);
+  final database = await ref.watch(databaseInitializerProvider.future);
+  final service = AnalyticsService(database);
   return service.getAnalytics(AnalyticsPeriod.today);
 });
 
 // Provider for yesterday's analytics
 final yesterdayAnalyticsProvider = FutureProvider<AnalyticsData>((ref) async {
-  final service = ref.watch(analyticsServiceProvider);
+  final database = await ref.watch(databaseInitializerProvider.future);
+  final service = AnalyticsService(database);
   return service.getAnalytics(AnalyticsPeriod.yesterday);
 });
 
 // Provider for this week's analytics
 final weekAnalyticsProvider = FutureProvider<AnalyticsData>((ref) async {
-  final service = ref.watch(analyticsServiceProvider);
+  final database = await ref.watch(databaseInitializerProvider.future);
+  final service = AnalyticsService(database);
   return service.getAnalytics(AnalyticsPeriod.thisWeek);
 });
 
 // Provider for this month's analytics
 final monthAnalyticsProvider = FutureProvider<AnalyticsData>((ref) async {
-  final service = ref.watch(analyticsServiceProvider);
+  final database = await ref.watch(databaseInitializerProvider.future);
+  final service = AnalyticsService(database);
   return service.getAnalytics(AnalyticsPeriod.thisMonth);
+});
+
+// Providers for mobile-only analytics.
+final mobileTodayAnalyticsProvider = FutureProvider<AnalyticsData>((ref) async {
+  final database = await ref.watch(databaseInitializerProvider.future);
+  final service = AnalyticsService(database);
+  return service.getAnalytics(AnalyticsPeriod.today, source: 'mobile');
+});
+
+final mobileYesterdayAnalyticsProvider = FutureProvider<AnalyticsData>((
+  ref,
+) async {
+  final database = await ref.watch(databaseInitializerProvider.future);
+  final service = AnalyticsService(database);
+  return service.getAnalytics(AnalyticsPeriod.yesterday, source: 'mobile');
+});
+
+final mobileWeekAnalyticsProvider = FutureProvider<AnalyticsData>((ref) async {
+  final database = await ref.watch(databaseInitializerProvider.future);
+  final service = AnalyticsService(database);
+  return service.getAnalytics(AnalyticsPeriod.thisWeek, source: 'mobile');
+});
+
+final mobileMonthAnalyticsProvider = FutureProvider<AnalyticsData>((ref) async {
+  final database = await ref.watch(databaseInitializerProvider.future);
+  final service = AnalyticsService(database);
+  return service.getAnalytics(AnalyticsPeriod.thisMonth, source: 'mobile');
 });
 
 // Provider for all app usage sessions
@@ -83,6 +108,16 @@ final filteredSessionsProvider = FutureProvider<List<AppUsageSession>>((
 
 // Provider for mobile sessions today (for desktop mobile stats card)
 final mobileSessionsProvider = FutureProvider<List<AppUsageSession>>((
+  ref,
+) async {
+  final database = await ref.watch(databaseInitializerProvider.future);
+  final now = DateTime.now();
+  final startOfDay = DateTime(now.year, now.month, now.day);
+  return database.getMobileSessionsInDateRange(startOfDay, now);
+});
+
+// Provider for today's mobile sessions only.
+final todaySessionsProvider = FutureProvider<List<AppUsageSession>>((
   ref,
 ) async {
   final database = await ref.watch(databaseInitializerProvider.future);
@@ -229,14 +264,17 @@ final appUsageNotifierProvider =
       return AppUsageNotifier(ref);
     });
 
-// Provider for deep analytics service
-final deepAnalyticsServiceProvider = Provider<DeepAnalyticsService>((ref) {
-  final database = ref.watch(databaseInitializerProvider).value!;
-  return DeepAnalyticsService(database);
-});
-
 // Provider for deep analytics data
 final deepAnalyticsProvider = FutureProvider<DeepAnalyticsData>((ref) async {
-  final service = ref.watch(deepAnalyticsServiceProvider);
+  final database = await ref.watch(databaseInitializerProvider.future);
+  final service = DeepAnalyticsService(database);
   return service.compute();
+});
+
+final mobileDeepAnalyticsProvider = FutureProvider<DeepAnalyticsData>((
+  ref,
+) async {
+  final database = await ref.watch(databaseInitializerProvider.future);
+  final service = DeepAnalyticsService(database);
+  return service.compute(source: 'mobile');
 });
