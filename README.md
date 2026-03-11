@@ -64,6 +64,113 @@ flutter build linux
 # Executable: build/linux/x64/release/bundle/focustrack
 ```
 
+You can also generate a distributable archive suitable for a GitHub release by running the helper script in the `installer` folder. Because the script invokes `flutter build linux` and uses native Unix tools, it needs to be executed on a Linux machine or inside WSL (the script will abort on plain Windows).
+
+Before building you’ll need a C/C++ toolchain and X11 headers; on Debian/Ubuntu/WSL run:
+
+```bash
+sudo apt update
+sudo apt install build-essential libx11-dev
+```
+
+Flutter itself must be installed in the same Linux environment (it isn’t shared with
+Windows).  The easiest way is via `snap`:
+
+```bash
+sudo snap install flutter --classic
+```
+
+or follow the manual instructions at https://flutter.dev/docs/get-started/install/linux.
+
+> **WSL note:** if your project directory lives on the Windows filesystem
+> (`/mnt/c/...`) the underlying NTFS mount doesn’t support Unix permission bits, so `chmod`
+> may fail or have no effect.  In that case either run the script with `bash`
+> explicitly (`bash installer/build-installer-linux.sh`) or clone/copy the
+> repository into the WSL filesystem (e.g. `~/projects/focustrack`) before
+> building.  Working inside the WSL filesystem also generally gives better
+> performance.
+
+```bash
+# on Linux/WSL (after installing Flutter):
+chmod +x installer/build-installer-linux.sh   # one‑time setup
+./installer/build-installer-linux.sh
+```
+
+That command produces a tarball (e.g. `installer/dist/FocusTrack-0.1.0-linux-x86_64.tar.gz`) for general release.
+
+If you’d prefer an AppImage—which runs on Ubuntu, Fedora, Arch, etc.—use the
+secondary script:
+
+```bash
+chmod +x installer/build-appimages.sh
+./installer/build-appimages.sh
+```
+
+It requires `linuxdeploy` and `appimagetool` on your PATH; see the comments in
+the script for download links. The resulting `*.AppImage` is also copied to the
+Windows `installer/dist` folder when run under WSL.
+
+Attach either or both files to your GitHub release and link the URLs from your
+landing page footer (for example
+`/releases/download/v0.1.0/FocusTrack-0.1.0-linux-x86_64.AppImage`).
+
+### Installing from the tarball
+
+Linux users can install simply by unpacking the archive and running the
+included binary. For example:
+
+```bash
+# extract to /opt (requires sudo) or to a directory in your home
+sudo tar -C /opt -xzvf FocusTrack-0.1.0-linux-x86_64.tar.gz
+# create a symlink so the command is on your PATH
+sudo ln -s /opt/focustrack/focustrack /usr/local/bin/focustrack
+
+# then launch with:
+focustrack
+```
+
+Or run directly from the bundle without installing:
+
+```bash
+tar -xzf FocusTrack-0.1.0-linux-x86_64.tar.gz
+./focustrack/focustrack
+```
+
+You can also place the bundle in `~/.local/bin` or another preferred location and
+create shortcuts or desktop entries as desired.
+
+Before building you’ll need a C/C++ toolchain and X11 headers; on Debian/Ubuntu/WSL run:
+
+```bash
+sudo apt update
+sudo apt install build-essential libx11-dev
+```
+
+Flutter itself must be installed in the same Linux environment (it isn’t shared with
+Windows).  The easiest way is via `snap`:
+
+```bash
+sudo snap install flutter --classic
+```
+
+or follow the manual instructions at https://flutter.dev/docs/get-started/install/linux.
+
+> **WSL note:** if your project directory lives on the Windows filesystem
+> (`/mnt/c/...`) the Windows mount doesn’t support Unix permissions, so `chmod`
+> may fail or have no effect.  In that case either run the script with `bash`
+> explicitly (`bash installer/build-installer-linux.sh`) or clone/copy the
+> repository into the WSL filesystem (e.g. `~/projects/focustrack`) before
+> building.  Working inside the WSL filesystem also generally gives better
+> performance.
+
+```bash
+# on Linux/WSL (after installing Flutter):
+chmod +x installer/build-installer-linux.sh   # one‑time setup, optional on /mnt
+./installer/build-installer-linux.sh
+```
+
+The script produces a tarball (e.g. `installer/dist/FocusTrack-0.1.0-linux-x86_64.tar.gz`) that you can attach to releases or link from your landing page. See `installer/BUILD_LINUX_INSTALLER.md` for full details.
+
 ## 📱 How to Use
 
 ### Main Dashboard
