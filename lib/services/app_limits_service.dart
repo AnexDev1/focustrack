@@ -1,9 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show Platform;
+import 'dart:io' show File, Platform;
 import 'package:flutter/services.dart';
+import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:focustrack/database/app_usage_database.dart';
+import 'package:focustrack/providers/database_provider.dart';
 import 'package:focustrack/services/android_usage_service.dart';
 import 'package:focustrack/services/notification_service.dart';
 
@@ -38,6 +42,8 @@ class AppLimitsService {
   static const _dailyGoalKey = 'daily_screen_time_goal';
   static const _notifiedAppsKey = 'notified_limit_apps';
   static const _notifiedMilestonesKey = 'notified_milestones';
+  static const _notifMilestonesEnabledKey = 'notif_milestones';
+  static const _notifUsageScopeKey = 'notif_usage_scope';
   static const _channel = MethodChannel('com.focustrack/usage_stats');
 
   Timer? _checkTimer;
@@ -116,6 +122,19 @@ class AppLimitsService {
     await prefs.remove(_notifiedMilestonesKey);
   }
 
+  static Future<String> getNotificationUsageScope() async {
+    final prefs = await SharedPreferences.getInstance();
+    final scope = prefs.getString(_notifUsageScopeKey);
+    return scope == 'combined' ? 'combined' : 'mobile';
+  }
+
+  static Future<void> setNotificationUsageScope(String scope) async {
+    final prefs = await SharedPreferences.getInstance();
+    final normalized = scope == 'combined' ? 'combined' : 'mobile';
+    await prefs.setString(_notifUsageScopeKey, normalized);
+    await prefs.remove(_notifiedMilestonesKey);
+  }
+
   /// Check all limits against current usage and fire notifications.
   Future<void> checkLimits() async {
     if (!Platform.isAndroid) return;
@@ -186,20 +205,33 @@ class AppLimitsService {
     await prefs.setStringList(_notifiedAppsKey, notifiedApps.toList());
 
     // Daily screen time milestones
-    final totalMs = stats.fold<int>(0, (s, st) => s + st.totalTimeMs);
-    final totalMinutes = totalMs ~/ 60000;
     final notifiedMilestones =
         (prefs.getStringList(_notifiedMilestonesKey) ?? []).toSet();
+    final milestonesEnabled = prefs.getBool(_notifMilestonesEnabledKey) ?? true;
+    final scope = await getNotificationUsageScope();
+    final mobileOnlyNotifications = scope != 'combined';
+    final totalMinutes = await _getNotificationTotalMinutes(stats, now, scope);
 
     // Milestone notifications at 1h, 2h, 4h, 6h, 8h
-    for (final hourMark in [60, 120, 240, 360, 480]) {
-      final key = 'milestone_$hourMark';
-      if (totalMinutes >= hourMark && !notifiedMilestones.contains(key)) {
-        await NotificationService.showScreenTimeMilestone(
-          hourMark ~/ 60,
-          totalMinutes,
-        );
-        notifiedMilestones.add(key);
+    if (milestonesEnabled) {
+      final reachedMilestones = [
+        60,
+        120,
+        240,
+        360,
+        480,
+      ].where((hourMark) => totalMinutes >= hourMark).toList();
+      if (reachedMilestones.isNotEmpty) {
+        final highestReached = reachedMilestones.last;
+        final key = 'milestone_$highestReached';
+        if (!notifiedMilestones.contains(key)) {
+          await NotificationService.showScreenTimeMilestone(
+            highestReached ~/ 60,
+            totalMinutes,
+            mobileOnly: mobileOnlyNotifications,
+          );
+          notifiedMilestones.add(key);
+        }
       }
     }
 
@@ -208,7 +240,10 @@ class AppLimitsService {
     if (dailyGoal > 0 && totalMinutes >= dailyGoal) {
       final goalKey = 'daily_goal';
       if (!notifiedMilestones.contains(goalKey)) {
-        await NotificationService.showDailyGoalReached(dailyGoal);
+        await NotificationService.showDailyGoalReached(
+          dailyGoal,
+          mobileOnly: mobileOnlyNotifications,
+        );
         notifiedMilestones.add(goalKey);
       }
     }
@@ -342,6 +377,44 @@ class AppLimitsService {
             : 0,
       );
     }).toList();
+  }
+
+  static Future<int> _getNotificationTotalMinutes(
+    List<AndroidAppStats> stats,
+    DateTime now,
+    String scope,
+  ) async {
+    final mobileMinutes = stats.fold<int>(0, (sum, stat) {
+      return sum + (stat.totalTimeMs ~/ 60000);
+    });
+
+    if (scope != 'combined') {
+      return mobileMinutes;
+    }
+
+    final desktopMinutes = await _getDesktopMinutesFromDatabase(now);
+    return mobileMinutes + desktopMinutes;
+  }
+
+  static Future<int> _getDesktopMinutesFromDatabase(DateTime now) async {
+    final appDir = await resolveDatabaseDirectory();
+    final file = File(p.join(appDir.path, 'app_usage.db'));
+    final database = AppUsageDatabase(NativeDatabase(file));
+
+    try {
+      final startOfDay = DateTime(now.year, now.month, now.day);
+      final sessions = await database.getSessionsInDateRangeBySource(
+        startOfDay,
+        now,
+        source: 'desktop',
+      );
+      final totalMs = sessions.fold<int>(0, (sum, session) {
+        return sum + session.durationMs;
+      });
+      return totalMs ~/ 60000;
+    } finally {
+      await database.close();
+    }
   }
 }
 

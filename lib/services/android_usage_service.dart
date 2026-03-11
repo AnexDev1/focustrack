@@ -238,4 +238,21 @@ class AndroidUsageStatsService {
       // ignore
     }
   }
+
+  /// Save a text file through Android's system document picker.
+  static Future<String?> saveTextFile({
+    required String fileName,
+    required String content,
+    String mimeType = 'text/plain',
+  }) async {
+    try {
+      return await _channel.invokeMethod<String>('saveTextFile', {
+        'fileName': fileName,
+        'content': content,
+        'mimeType': mimeType,
+      });
+    } on PlatformException {
+      return null;
+    }
+  }
 }

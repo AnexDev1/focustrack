@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart' hide Icons;
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:focustrack/providers/app_usage_provider.dart';
@@ -7,11 +8,29 @@ import 'package:focustrack/theme/app_icons.dart';
 import 'package:focustrack/theme/app_theme.dart';
 import 'package:focustrack/models/app_category.dart';
 
-class MobileInsightsScreen extends ConsumerWidget {
+class MobileInsightsScreen extends ConsumerStatefulWidget {
   const MobileInsightsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MobileInsightsScreen> createState() =>
+      _MobileInsightsScreenState();
+}
+
+class _MobileInsightsScreenState extends ConsumerState<MobileInsightsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        await syncAndRefreshMobileData(ref);
+      } else {
+        invalidateMobileDerivedProviders(ref);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final analyticsAsync = ref.watch(mobileDeepAnalyticsProvider);
 
     return SafeArea(

@@ -1,7 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:drift/native.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:focustrack/services/android_usage_service.dart';
+import 'package:focustrack/database/app_usage_database.dart';
 
 /// Sync client that runs on mobile to push data to the desktop.
 class SyncClient {
@@ -48,24 +53,38 @@ class SyncClient {
     if (address == null || address.isEmpty) return -1;
 
     try {
-      // Get today's events from Android UsageStats
-      final events = await AndroidUsageStatsService.getTodayEvents();
-      if (events.isEmpty) return 0;
+      // Prefer pulling sessions from local database so the desktop snapshot
+      // matches exactly what the phone is displaying (including active).
+      final dir = await getApplicationDocumentsDirectory();
+      final dbDir = Directory(p.join(dir.path, 'FocusTrack'));
+      final file = File(p.join(dbDir.path, 'app_usage.db'));
+      final database = AppUsageDatabase(NativeDatabase(file));
+      final now = DateTime.now();
+      final startOfDay = DateTime(now.year, now.month, now.day);
+      final sessions = await database.getMobileSessionsInDateRange(
+        startOfDay,
+        now,
+      );
 
-      // Convert to JSON, excluding FocusTrack's own usage (consistent with local sync)
-      final sessionsJson = events
-          .where((e) => !e.packageName.contains('focustrack'))
-          .map(
-            (e) => {
-              'appName': e.appName,
-              'windowTitle': null,
-              'startTime': e.startTime,
-              'endTime': e.endTime,
-              'durationMs': e.durationMs,
-              'idleTimeMs': 0,
-            },
-          )
-          .toList();
+      if (sessions.isEmpty) {
+        await database.close();
+        return 0;
+      }
+
+      // Convert to JSON
+      final sessionsJson = sessions.map((s) {
+        final end = s.endTime ?? s.startTime;
+        return {
+          'appName': s.appName,
+          'windowTitle': s.windowTitle,
+          'startTime': s.startTime.millisecondsSinceEpoch,
+          'endTime': end.millisecondsSinceEpoch,
+          'durationMs': s.durationMs,
+          'idleTimeMs': s.idleTimeMs,
+        };
+      }).toList();
+
+      await database.close();
 
       final uri = Uri.parse('http://$address/sync');
       final response = await http

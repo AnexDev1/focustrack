@@ -10,7 +10,7 @@ final databaseProvider = Provider<AppUsageDatabase>((ref) {
   throw UnimplementedError('Database provider not initialized');
 });
 
-Future<Directory> _resolveDatabaseDirectory() async {
+Future<Directory> resolveDatabaseDirectory() async {
   final candidates = <Future<Directory> Function()>[
     () => getApplicationSupportDirectory(),
     () => getApplicationDocumentsDirectory(),
@@ -53,7 +53,7 @@ Future<Directory> _resolveDatabaseDirectory() async {
 final databaseInitializerProvider = FutureProvider<AppUsageDatabase>((
   ref,
 ) async {
-  final appDir = await _resolveDatabaseDirectory();
+  final appDir = await resolveDatabaseDirectory();
   final file = File(p.join(appDir.path, 'app_usage.db'));
   final database = AppUsageDatabase(NativeDatabase(file));
   return database;

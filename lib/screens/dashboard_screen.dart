@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:focustrack/providers/app_usage_provider.dart';
 import 'package:focustrack/providers/database_provider.dart';
 import 'package:focustrack/services/app_usage_service.dart';
+import 'package:focustrack/services/data_transfer_service.dart';
 import 'package:focustrack/services/sync_server.dart';
 import 'package:focustrack/theme/app_icons.dart';
 import 'package:focustrack/theme/app_theme.dart';
@@ -614,7 +615,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _buildInsightsMiniCard() {
-    final deepAsync = ref.watch(deepAnalyticsProvider);
+    final deepAsync = ref.watch(filteredDeepAnalyticsProvider);
     return deepAsync.when(
       data: (data) {
         final streak = data.productivityStreak;
@@ -942,6 +943,79 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
               ),
               ListTile(
+                leading: const Icon(Icons.file_download_outlined),
+                title: const Text('Export Data'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final database = await ref.read(
+                    databaseInitializerProvider.future,
+                  );
+                  final sessions = await database.getAllSessions();
+                  if (sessions.isEmpty && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('No data to export')),
+                    );
+                    return;
+                  }
+                  final path = await DataTransferService.pickSavePath(
+                    suggestedName:
+                        'focustrack_sessions_${DateTime.now().toIso8601String().replaceAll(':', '-')}.csv',
+                    extension: 'csv',
+                    dialogTitle: 'Choose where to export your data',
+                  );
+                  if (path == null) return;
+                  final exportedPath =
+                      await DataTransferService.exportSessionsCsv(
+                        sessions,
+                        outputPath: path,
+                      );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Exported data to $exportedPath')),
+                    );
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.code),
+                title: const Text('Import Data'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final selectedPath = await DataTransferService.pickImportPath(
+                    dialogTitle: 'Choose exported data to import',
+                  );
+                  if (selectedPath == null) return;
+                  final database = await ref.read(
+                    databaseInitializerProvider.future,
+                  );
+                  final importedCount =
+                      await DataTransferService.importSessionsFromFile(
+                        database,
+                        selectedPath,
+                      );
+                  ref.invalidate(recentSessionsProvider);
+                  ref.invalidate(filteredSessionsProvider);
+                  ref.invalidate(todayAnalyticsProvider);
+                  ref.invalidate(yesterdayAnalyticsProvider);
+                  ref.invalidate(weekAnalyticsProvider);
+                  ref.invalidate(monthAnalyticsProvider);
+                  ref.invalidate(deepAnalyticsProvider);
+                  ref.invalidate(filteredDeepAnalyticsProvider);
+                  ref.invalidate(mobileSessionsProvider);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          importedCount > 0
+                              ? 'Imported $importedCount sessions'
+                              : 'No new sessions were imported',
+                        ),
+                      ),
+                    );
+                  }
+                },
+              ),
+              ListTile(
                 leading: const Icon(Icons.delete_outline),
                 title: const Text('Clear All Data'),
                 onTap: () async {
@@ -969,10 +1043,27 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     final database = await ref.read(
                       databaseInitializerProvider.future,
                     );
+                    // stop desktop tracking before clearing
+                    ref.read(appUsageServiceProvider)?.stopTracking();
                     await database.clearAllSessions();
+                    // invalidate all relevant providers so UI updates
+                    ref.invalidate(allSessionsProvider);
+                    ref.invalidate(recentSessionsProvider);
+                    ref.invalidate(filteredSessionsProvider);
+                    ref.invalidate(todayAnalyticsProvider);
+                    ref.invalidate(yesterdayAnalyticsProvider);
+                    ref.invalidate(weekAnalyticsProvider);
+                    ref.invalidate(monthAnalyticsProvider);
+                    ref.invalidate(deepAnalyticsProvider);
+                    ref.invalidate(filteredDeepAnalyticsProvider);
+                    ref.invalidate(mobileSessionsProvider);
                     if (context.mounted) {
-                      ref.invalidate(recentSessionsProvider);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('All data cleared')),
+                      );
                     }
+                    // restart tracking immediately
+                    ref.read(appUsageServiceProvider)?.startTracking();
                   }
                 },
               ),

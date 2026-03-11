@@ -6,6 +6,7 @@ import 'package:focustrack/services/analytics_service.dart';
 import 'package:focustrack/theme/app_icons.dart';
 import 'package:focustrack/theme/app_theme.dart';
 import 'package:focustrack/models/app_category.dart';
+import 'package:flutter/foundation.dart';
 
 class MobileAnalyticsScreen extends ConsumerStatefulWidget {
   const MobileAnalyticsScreen({super.key});
@@ -17,6 +18,18 @@ class MobileAnalyticsScreen extends ConsumerStatefulWidget {
 
 class _MobileAnalyticsScreenState extends ConsumerState<MobileAnalyticsScreen> {
   AnalyticsPeriod _selectedPeriod = AnalyticsPeriod.today;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        await syncAndRefreshMobileData(ref);
+      } else {
+        invalidateMobileDerivedProviders(ref);
+      }
+    });
+  }
 
   String _formatDuration(int milliseconds) {
     final duration = Duration(milliseconds: milliseconds);

@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:focustrack/database/app_usage_database.dart';
 import 'package:focustrack/models/app_category.dart';
+import 'package:focustrack/services/data_transfer_service.dart';
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 enum AnalyticsPeriod { today, yesterday, thisWeek, thisMonth, custom }
@@ -217,18 +219,19 @@ class AnalyticsService {
     );
   }
 
-  Future<String> exportToJson(AnalyticsData data) async {
+  Future<String> exportToJson(AnalyticsData data, {String? outputPath}) async {
     final jsonString = const JsonEncoder.withIndent(
       '  ',
     ).convert(data.toJson());
-    final directory = await getApplicationDocumentsDirectory();
-    final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
-    final file = File('${directory.path}/focustrack_export_$timestamp.json');
-    await file.writeAsString(jsonString);
-    return file.path;
+    final targetPath = await _resolveOutputPath(outputPath, 'json');
+    return DataTransferService.writeTextContent(
+      content: jsonString,
+      outputPath: targetPath,
+      mimeType: 'application/json',
+    );
   }
 
-  Future<String> exportToCsv(AnalyticsData data) async {
+  Future<String> exportToCsv(AnalyticsData data, {String? outputPath}) async {
     final buffer = StringBuffer();
 
     // Summary
@@ -277,10 +280,24 @@ class AnalyticsService {
       buffer.writeln('${entry.key.toIso8601String()},${entry.value}');
     }
 
-    final directory = await getApplicationDocumentsDirectory();
-    final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
-    final file = File('${directory.path}/focustrack_export_$timestamp.csv');
-    await file.writeAsString(buffer.toString());
-    return file.path;
+    final targetPath = await _resolveOutputPath(outputPath, 'csv');
+    return DataTransferService.writeTextContent(
+      content: buffer.toString(),
+      outputPath: targetPath,
+      mimeType: 'text/csv',
+    );
+  }
+
+  Future<String> _resolveOutputPath(
+    String? outputPath,
+    String extension,
+  ) async {
+    if (outputPath != null && outputPath.isNotEmpty) {
+      return outputPath;
+    }
+
+    final defaultPath =
+        '${(await getApplicationDocumentsDirectory()).path}/focustrack_export_${DateTime.now().toIso8601String().replaceAll(':', '-')}.$extension';
+    return p.normalize(defaultPath);
   }
 }

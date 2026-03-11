@@ -35,13 +35,10 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
     });
     _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
       if (!mounted) return;
-      // Sync fresh Android data into DB before reloading providers
       if (Platform.isAndroid) {
-        await ref.read(mobileUsageSyncProvider).syncNow();
+        await syncAndRefreshMobileData(ref);
       }
       if (!mounted) return;
-      ref.invalidate(todaySessionsProvider);
-      ref.invalidate(todayAnalyticsProvider);
       setState(() {
         _visibleSessionCount = _sessionPageSize;
       });
@@ -52,7 +49,9 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
     if (!Platform.isAndroid) return;
     final hasPermission = await AndroidUsageStatsService.hasPermission();
     if (hasPermission) {
-      ref.read(mobileUsageSyncProvider).startSync();
+      final syncService = await ref.read(mobileUsageSyncProvider.future);
+      syncService.startSync();
+      await syncAndRefreshMobileData(ref);
     }
   }
 
@@ -82,10 +81,8 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
         backgroundColor: AppTheme.surfaceColor,
         onRefresh: () async {
           if (Platform.isAndroid) {
-            await ref.read(mobileUsageSyncProvider).syncNow();
+            await syncAndRefreshMobileData(ref);
           }
-          ref.invalidate(todaySessionsProvider);
-          ref.invalidate(todayAnalyticsProvider);
           if (!mounted) return;
           setState(() {
             _visibleSessionCount = _sessionPageSize;
@@ -128,9 +125,8 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
                     IconButton(
                       onPressed: () async {
                         if (Platform.isAndroid) {
-                          await ref.read(mobileUsageSyncProvider).syncNow();
+                          await syncAndRefreshMobileData(ref);
                           if (!mounted) return;
-                          ref.invalidate(todaySessionsProvider);
                           setState(() {
                             _visibleSessionCount = _sessionPageSize;
                           });
@@ -256,6 +252,15 @@ class _MobileDashboardScreenState extends ConsumerState<MobileDashboardScreen> {
                 // After returning from settings, re-check
                 await Future.delayed(const Duration(seconds: 1));
                 ref.invalidate(usagePermissionProvider);
+                final hasPermission =
+                    await AndroidUsageStatsService.hasPermission();
+                if (hasPermission) {
+                  final syncService = await ref.read(
+                    mobileUsageSyncProvider.future,
+                  );
+                  syncService.startSync();
+                  await syncAndRefreshMobileData(ref);
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.warningColor,

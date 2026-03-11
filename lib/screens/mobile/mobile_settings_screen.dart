@@ -1,5 +1,4 @@
-import 'dart:io' show Directory, File, Platform;
-import 'package:flutter/services.dart';
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart' hide Icons;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:focustrack/providers/app_usage_provider.dart';
@@ -7,10 +6,10 @@ import 'package:focustrack/theme/app_theme.dart';
 import 'package:focustrack/theme/app_icons.dart';
 import 'package:focustrack/providers/database_provider.dart';
 import 'package:focustrack/services/android_usage_service.dart';
+import 'package:focustrack/services/data_transfer_service.dart';
+import 'package:focustrack/services/mobile_usage_sync.dart';
 import 'package:focustrack/services/sync_client.dart';
 import 'package:focustrack/services/app_limits_service.dart';
-import 'package:focustrack/services/notification_service.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MobileSettingsScreen extends ConsumerStatefulWidget {
@@ -34,6 +33,7 @@ class _MobileSettingsScreenState extends ConsumerState<MobileSettingsScreen> {
   bool _milestonesEnabled = true;
   bool _breakRemindersEnabled = true;
   int _breakIntervalMinutes = 60;
+  String _notificationUsageScope = 'mobile';
 
   // Sync state
   String _serverAddress = '';
@@ -57,6 +57,10 @@ class _MobileSettingsScreenState extends ConsumerState<MobileSettingsScreen> {
       _milestonesEnabled = prefs.getBool('notif_milestones') ?? true;
       _breakRemindersEnabled = prefs.getBool('notif_break_reminders') ?? true;
       _breakIntervalMinutes = prefs.getInt('break_interval_minutes') ?? 60;
+      _notificationUsageScope =
+          prefs.getString('notif_usage_scope') == 'combined'
+          ? 'combined'
+          : 'mobile';
     });
   }
 
@@ -89,6 +93,7 @@ class _MobileSettingsScreenState extends ConsumerState<MobileSettingsScreen> {
     setState(() => _isSyncing = true);
     final count = await SyncClient.syncToDesktop();
     final lastSync = await SyncClient.getLastSyncTime();
+    invalidateMobileDerivedProviders(ref);
     if (mounted) {
       setState(() {
         _isSyncing = false;
@@ -170,6 +175,13 @@ class _MobileSettingsScreenState extends ConsumerState<MobileSettingsScreen> {
                           onPressed: () async {
                             await AndroidUsageStatsService.requestPermission();
                             await _checkAllPermissions();
+                            if (_hasPermission) {
+                              final syncService = await ref.read(
+                                mobileUsageSyncProvider.future,
+                              );
+                              syncService.startSync();
+                              await syncAndRefreshMobileData(ref);
+                            }
                           },
                           child: const Text('Grant'),
                         ),
@@ -308,11 +320,22 @@ class _MobileSettingsScreenState extends ConsumerState<MobileSettingsScreen> {
                 trailing: Switch(
                   value: _milestonesEnabled,
                   activeColor: AppTheme.primaryColor,
-                  onChanged: (val) {
+                  onChanged: (val) async {
                     setState(() => _milestonesEnabled = val);
-                    _saveNotifPref('notif_milestones', val);
+                    await _saveNotifPref('notif_milestones', val);
+                    await AppLimitsService.resetNotifications();
                   },
                 ),
+              ),
+              _settingsTile(
+                context,
+                icon: Icons.swap_horiz_rounded,
+                iconColor: AppTheme.primaryColor,
+                title: 'Notification Data Source',
+                subtitle: _notificationUsageScope == 'combined'
+                    ? 'Combined mobile + desktop totals'
+                    : 'Mobile only totals',
+                onTap: () => _showNotificationScopePicker(),
               ),
               _settingsTile(
                 context,
@@ -363,8 +386,8 @@ class _MobileSettingsScreenState extends ConsumerState<MobileSettingsScreen> {
                 iconColor: AppTheme.accentColor,
                 title: 'Sync Now',
                 subtitle: _lastSyncTime != null
-                    ? 'Last: ${_formatSyncTime(_lastSyncTime!)}'
-                    : 'Never synced',
+                    ? 'Last: ${_formatSyncTime(_lastSyncTime!)} • auto every minute while tracking is on'
+                    : 'Auto syncs every minute while tracking is on',
                 trailing: _isSyncing
                     ? const SizedBox(
                         width: 22,
@@ -391,6 +414,14 @@ class _MobileSettingsScreenState extends ConsumerState<MobileSettingsScreen> {
                 title: 'Export Data',
                 subtitle: 'Export usage history as CSV',
                 onTap: () => _exportData(),
+              ),
+              _settingsTile(
+                context,
+                icon: Icons.code,
+                iconColor: AppTheme.accentColor,
+                title: 'Import Data',
+                subtitle: 'Import previously exported CSV or JSON data',
+                onTap: () => _importData(),
               ),
               _settingsTile(
                 context,
@@ -560,7 +591,13 @@ class _MobileSettingsScreenState extends ConsumerState<MobileSettingsScreen> {
 
     if (result != null && result.isNotEmpty) {
       await SyncClient.setServerAddress(result);
+      if (_hasPermission && !_serviceRunning) {
+        await AndroidUsageStatsService.startForegroundService();
+      }
       setState(() => _serverAddress = result);
+      if (_hasPermission && !_serviceRunning) {
+        setState(() => _serviceRunning = true);
+      }
       _checkServer();
     }
   }
@@ -599,14 +636,9 @@ class _MobileSettingsScreenState extends ConsumerState<MobileSettingsScreen> {
       await _checkAllPermissions();
       ref.invalidate(allSessionsProvider);
       ref.invalidate(recentSessionsProvider);
-      ref.invalidate(todaySessionsProvider);
       ref.invalidate(todayAnalyticsProvider);
-      ref.invalidate(mobileTodayAnalyticsProvider);
-      ref.invalidate(mobileYesterdayAnalyticsProvider);
-      ref.invalidate(mobileWeekAnalyticsProvider);
-      ref.invalidate(mobileMonthAnalyticsProvider);
-      ref.invalidate(mobileDeepAnalyticsProvider);
       ref.invalidate(deepAnalyticsProvider);
+      invalidateMobileDerivedProviders(ref);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('All local app data cleared')),
@@ -654,6 +686,64 @@ class _MobileSettingsScreenState extends ConsumerState<MobileSettingsScreen> {
     );
   }
 
+  void _showNotificationScopePicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.surfaceColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Notification Data Source',
+              style: Theme.of(
+                ctx,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 16),
+            RadioListTile<String>(
+              title: const Text('Mobile only'),
+              subtitle: const Text(
+                'Use phone usage only for milestone and goal alerts',
+              ),
+              value: 'mobile',
+              groupValue: _notificationUsageScope,
+              activeColor: AppTheme.primaryColor,
+              onChanged: (val) async {
+                if (val == null) return;
+                await AppLimitsService.setNotificationUsageScope(val);
+                if (!mounted) return;
+                setState(() => _notificationUsageScope = val);
+                Navigator.pop(ctx);
+              },
+            ),
+            RadioListTile<String>(
+              title: const Text('Combined mobile + desktop'),
+              subtitle: const Text(
+                'Include desktop sessions stored on this device too',
+              ),
+              value: 'combined',
+              groupValue: _notificationUsageScope,
+              activeColor: AppTheme.primaryColor,
+              onChanged: (val) async {
+                if (val == null) return;
+                await AppLimitsService.setNotificationUsageScope(val);
+                if (!mounted) return;
+                setState(() => _notificationUsageScope = val);
+                Navigator.pop(ctx);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _exportData() async {
     final db = await ref.read(databaseInitializerProvider.future);
     final sessions = await db.getAllSessions();
@@ -665,37 +755,59 @@ class _MobileSettingsScreenState extends ConsumerState<MobileSettingsScreen> {
       }
       return;
     }
+    final selectedPath = await DataTransferService.pickSavePath(
+      suggestedName:
+          'focustrack_sessions_${DateTime.now().toIso8601String().replaceAll(':', '-')}.csv',
+      extension: 'csv',
+      dialogTitle: 'Choose where to export your data',
+    );
+    if (selectedPath == null) {
+      return;
+    }
 
-    final buffer = StringBuffer();
-    buffer.writeln('App Name,Start Time,End Time,Duration (seconds),Source');
-    for (final s in sessions) {
-      final end = s.endTime ?? s.startTime;
-      final duration = end.difference(s.startTime).inSeconds;
-      buffer.writeln(
-        '"${s.appName}","${s.startTime}","$end",$duration,"${s.source}"',
+    final path = await DataTransferService.exportSessionsCsv(
+      sessions,
+      outputPath: selectedPath,
+    );
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Exported ${sessions.length} sessions to $path'),
+          duration: const Duration(seconds: 4),
+        ),
       );
     }
+  }
 
-    final directory = await getApplicationDocumentsDirectory();
-    final exportDirectory = Directory('${directory.path}/exports');
-    if (!await exportDirectory.exists()) {
-      await exportDirectory.create(recursive: true);
+  Future<void> _importData() async {
+    final selectedPath = await DataTransferService.pickImportPath(
+      dialogTitle: 'Choose exported data to import',
+    );
+    if (selectedPath == null) {
+      return;
     }
 
-    final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
-    final file = File(
-      '${exportDirectory.path}/focustrack_export_$timestamp.csv',
+    final db = await ref.read(databaseInitializerProvider.future);
+    final importedCount = await DataTransferService.importSessionsFromFile(
+      db,
+      selectedPath,
     );
-    await file.writeAsString(buffer.toString());
-    await Clipboard.setData(ClipboardData(text: file.path));
+
+    ref.invalidate(allSessionsProvider);
+    ref.invalidate(recentSessionsProvider);
+    ref.invalidate(todayAnalyticsProvider);
+    ref.invalidate(deepAnalyticsProvider);
+    invalidateMobileDerivedProviders(ref);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Exported ${sessions.length} sessions to ${file.path} and copied the path',
+            importedCount > 0
+                ? 'Imported $importedCount sessions'
+                : 'No new sessions were imported',
           ),
-          duration: const Duration(seconds: 4),
         ),
       );
     }

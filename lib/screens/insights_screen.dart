@@ -13,7 +13,7 @@ class InsightsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final analyticsAsync = ref.watch(deepAnalyticsProvider);
+    final analyticsAsync = ref.watch(filteredDeepAnalyticsProvider);
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,

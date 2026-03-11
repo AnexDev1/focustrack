@@ -107,24 +107,32 @@ class NotificationService {
   /// Notification for screen time milestone (1h, 2h, 4h, etc).
   static Future<void> showScreenTimeMilestone(
     int hours,
-    int totalMinutes,
-  ) async {
+    int totalMinutes, {
+    bool mobileOnly = true,
+  }) async {
     await _ensureInit();
     await _plugin.show(
       2000 + hours,
       'Screen Time: ${_formatMinutes(totalMinutes)}',
-      'You\'ve been on your phone for ${hours}h today. Time for a break?',
+      mobileOnly
+          ? 'You\'ve been on your phone for ${hours}h today. Time for a break?'
+          : 'You\'ve logged ${hours}h across mobile and desktop today. Time for a break?',
       const NotificationDetails(android: _milestonesChannel),
     );
   }
 
   /// Notification when daily screen time goal is reached.
-  static Future<void> showDailyGoalReached(int goalMinutes) async {
+  static Future<void> showDailyGoalReached(
+    int goalMinutes, {
+    bool mobileOnly = true,
+  }) async {
     await _ensureInit();
     await _plugin.show(
       3000,
       'Daily Screen Time Goal Reached',
-      'You\'ve hit your ${_formatMinutes(goalMinutes)} daily screen time goal. Great awareness!',
+      mobileOnly
+          ? 'You\'ve hit your ${_formatMinutes(goalMinutes)} daily mobile screen time goal. Great awareness!'
+          : 'You\'ve hit your ${_formatMinutes(goalMinutes)} daily across-device screen time goal. Great awareness!',
       const NotificationDetails(android: _goalChannel),
     );
   }

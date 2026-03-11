@@ -85,22 +85,24 @@ class SyncServer {
         }
 
         if (companions.isNotEmpty) {
-          // Clear old mobile sessions for the same date range, then insert new
-          final earliest = companions
+          final snapshotDay = companions
               .map((c) => c.startTime.value)
               .reduce((a, b) => a.isBefore(b) ? a : b);
-          final latest = companions
-              .map((c) => c.startTime.value)
-              .reduce((a, b) => a.isAfter(b) ? a : b)
-              .add(const Duration(days: 1));
+          final startOfDay = DateTime(
+            snapshotDay.year,
+            snapshotDay.month,
+            snapshotDay.day,
+          );
+          final endOfDay = startOfDay.add(const Duration(days: 1));
 
-          // Remove existing mobile sessions in this range to avoid duplicates
+          // Replace the full mobile snapshot for that day to keep desktop totals
+          // aligned with the phone's current authoritative Android totals.
           final deleteStmt = database.delete(database.appUsageSessions)
             ..where(
               (tbl) =>
                   tbl.source.equals('mobile') &
-                  tbl.startTime.isBiggerOrEqualValue(earliest) &
-                  tbl.startTime.isSmallerThanValue(latest),
+                  tbl.startTime.isBiggerOrEqualValue(startOfDay) &
+                  tbl.startTime.isSmallerThanValue(endOfDay),
             );
           await deleteStmt.go();
 

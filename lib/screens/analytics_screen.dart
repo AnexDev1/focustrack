@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:focustrack/providers/app_usage_provider.dart';
 import 'package:focustrack/providers/database_provider.dart';
 import 'package:focustrack/services/analytics_service.dart';
+import 'package:focustrack/services/data_transfer_service.dart';
 import 'package:focustrack/theme/app_icons.dart';
 import 'package:focustrack/theme/app_theme.dart';
 import 'package:focustrack/widgets/custom_widgets.dart';
@@ -67,12 +68,24 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     try {
       final database = await ref.read(databaseInitializerProvider.future);
       final service = AnalyticsService(database);
+      final extension = format == 'json' ? 'json' : 'csv';
+      final suggestedName =
+          'focustrack_export_${DateTime.now().toIso8601String().replaceAll(':', '-')}.$extension';
+      final selectedPath = await DataTransferService.pickSavePath(
+        suggestedName: suggestedName,
+        extension: extension,
+        dialogTitle: 'Choose where to export analytics',
+      );
+      if (selectedPath == null) {
+        return;
+      }
+
       String path;
 
       if (format == 'json') {
-        path = await service.exportToJson(data);
+        path = await service.exportToJson(data, outputPath: selectedPath);
       } else {
-        path = await service.exportToCsv(data);
+        path = await service.exportToCsv(data, outputPath: selectedPath);
       }
 
       if (mounted) {

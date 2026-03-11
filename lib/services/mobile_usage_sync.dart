@@ -35,73 +35,45 @@ class MobileUsageSyncService {
     final hasPermission = await AndroidUsageStatsService.hasPermission();
     if (!hasPermission) return;
 
-    final events = await AndroidUsageStatsService.getTodayEvents();
-    if (events.isEmpty) return;
-
     final now = DateTime.now();
     final startOfDay = DateTime(now.year, now.month, now.day);
+    final events = await AndroidUsageStatsService.getTodayEvents();
 
-    // Only compare against existing mobile sessions for today.
-    final existingSessions = await _database.getMobileSessionsInDateRange(
-      startOfDay,
-      now,
-    );
-
-    for (final event in events) {
-      // Skip our own app
-      if (event.packageName.contains('focustrack')) continue;
-
-      final startDt = DateTime.fromMillisecondsSinceEpoch(event.startTime);
-      final endDt = DateTime.fromMillisecondsSinceEpoch(event.endTime);
-
-      // Find matching session in DB (same app name, start time within 5 seconds)
-      AppUsageSession? existing;
-      for (final s in existingSessions) {
-        if (s.appName == event.appName &&
-            (s.startTime.millisecondsSinceEpoch - event.startTime).abs() <
-                5000) {
-          existing = s;
-          break;
-        }
-      }
-
-      if (existing != null) {
-        // Always update with the latest data — the Kotlin side now caps durations
-        // against UsageStats totals, so the new value is authoritative.
-        if (event.durationMs != existing.durationMs) {
-          await _database.updateSession(
-            existing.copyWith(
-              endTime: Value(endDt),
-              durationMs: event.durationMs,
-              source: 'mobile',
+    final companions = events
+        .where(
+          (event) =>
+              !event.packageName.contains('focustrack') &&
+              event.durationMs > 1000,
+        )
+        .map(
+          (event) => AppUsageSessionsCompanion(
+            appName: Value(event.appName),
+            windowTitle: const Value(null),
+            startTime: Value(
+              DateTime.fromMillisecondsSinceEpoch(event.startTime),
             ),
-          );
-          // Keep local list in sync so we don't re-match on a second pass
-          final idx = existingSessions.indexOf(existing);
-          if (idx != -1) {
-            existingSessions[idx] = existing.copyWith(
-              endTime: Value(endDt),
-              durationMs: event.durationMs,
-              source: 'mobile',
-            );
-          }
-        } else if (existing.source != 'mobile') {
-          await _database.updateSession(existing.copyWith(source: 'mobile'));
-        }
-      } else if (event.durationMs > 1000) {
-        // New session — insert it
-        final session = AppUsageSessionsCompanion(
-          appName: Value(event.appName),
-          windowTitle: const Value(null),
-          startTime: Value(startDt),
-          endTime: Value(endDt),
-          durationMs: Value(event.durationMs),
-          idleTimeMs: const Value(0),
-          isActive: const Value(false),
-          source: const Value('mobile'),
-        );
-        await _database.insertSession(session);
-      }
+            endTime: Value(DateTime.fromMillisecondsSinceEpoch(event.endTime)),
+            durationMs: Value(event.durationMs),
+            idleTimeMs: const Value(0),
+            isActive: const Value(false),
+            source: const Value('mobile'),
+          ),
+        )
+        .toList();
+
+    final deleteStmt = _database.delete(_database.appUsageSessions)
+      ..where(
+        (tbl) =>
+            tbl.source.equals('mobile') &
+            tbl.startTime.isBiggerOrEqualValue(startOfDay) &
+            tbl.startTime.isSmallerThanValue(
+              startOfDay.add(const Duration(days: 1)),
+            ),
+      );
+    await deleteStmt.go();
+
+    if (companions.isNotEmpty) {
+      await _database.insertMobileSessions(companions);
     }
   }
 
@@ -116,10 +88,16 @@ class MobileUsageSyncService {
   }
 }
 
-/// Provider for mobile usage sync service.
-final mobileUsageSyncProvider = Provider<MobileUsageSyncService>((ref) {
-  final database = ref.watch(databaseInitializerProvider).value!;
+Future<MobileUsageSyncService> getMobileUsageSyncService(Ref ref) async {
+  final database = await ref.read(databaseInitializerProvider.future);
   return MobileUsageSyncService(database);
+}
+
+/// Provider for mobile usage sync service.
+final mobileUsageSyncProvider = FutureProvider<MobileUsageSyncService>((
+  ref,
+) async {
+  return getMobileUsageSyncService(ref);
 });
 
 /// Provider to track permission state.

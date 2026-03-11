@@ -3,6 +3,7 @@ import 'package:focustrack/database/app_usage_database.dart';
 import 'package:focustrack/providers/database_provider.dart';
 import 'package:focustrack/services/analytics_service.dart';
 import 'package:focustrack/services/deep_analytics_service.dart';
+import 'package:focustrack/services/mobile_usage_sync.dart';
 import 'package:drift/drift.dart';
 
 // Provider for today's analytics
@@ -271,6 +272,15 @@ final deepAnalyticsProvider = FutureProvider<DeepAnalyticsData>((ref) async {
   return service.compute();
 });
 
+final filteredDeepAnalyticsProvider = FutureProvider<DeepAnalyticsData>((
+  ref,
+) async {
+  final database = await ref.watch(databaseInitializerProvider.future);
+  final source = ref.watch(sourceFilterProvider);
+  final service = DeepAnalyticsService(database);
+  return service.compute(source: source);
+});
+
 final mobileDeepAnalyticsProvider = FutureProvider<DeepAnalyticsData>((
   ref,
 ) async {
@@ -278,3 +288,19 @@ final mobileDeepAnalyticsProvider = FutureProvider<DeepAnalyticsData>((
   final service = DeepAnalyticsService(database);
   return service.compute(source: 'mobile');
 });
+
+void invalidateMobileDerivedProviders(WidgetRef ref) {
+  ref.invalidate(todaySessionsProvider);
+  ref.invalidate(mobileSessionsProvider);
+  ref.invalidate(mobileTodayAnalyticsProvider);
+  ref.invalidate(mobileYesterdayAnalyticsProvider);
+  ref.invalidate(mobileWeekAnalyticsProvider);
+  ref.invalidate(mobileMonthAnalyticsProvider);
+  ref.invalidate(mobileDeepAnalyticsProvider);
+}
+
+Future<void> syncAndRefreshMobileData(WidgetRef ref) async {
+  final syncService = await ref.read(mobileUsageSyncProvider.future);
+  await syncService.syncNow();
+  invalidateMobileDerivedProviders(ref);
+}

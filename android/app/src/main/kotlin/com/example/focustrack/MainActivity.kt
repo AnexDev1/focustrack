@@ -9,6 +9,7 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.app.NotificationManager
+import android.app.Activity
 import android.os.Build
 import android.os.PowerManager
 import android.os.Process
@@ -16,9 +17,13 @@ import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.io.IOException
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.focustrack/usage_stats"
+    private val SAVE_TEXT_FILE_REQUEST_CODE = 1002
+    private var pendingSaveResult: MethodChannel.Result? = null
+    private var pendingSaveContent: ByteArray? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -109,6 +114,23 @@ class MainActivity : FlutterActivity() {
                     }
                     result.success(true)
                 }
+                "saveTextFile" -> {
+                    if (pendingSaveResult != null) {
+                        result.error("save_in_progress", "Another save is already in progress", null)
+                    } else {
+                        val fileName = call.argument<String>("fileName") ?: "focustrack_export.txt"
+                        val content = call.argument<String>("content") ?: ""
+                        val mimeType = call.argument<String>("mimeType") ?: "text/plain"
+                        pendingSaveResult = result
+                        pendingSaveContent = content.toByteArray(Charsets.UTF_8)
+                        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                            addCategory(Intent.CATEGORY_OPENABLE)
+                            type = mimeType
+                            putExtra(Intent.EXTRA_TITLE, fileName)
+                        }
+                        startActivityForResult(intent, SAVE_TEXT_FILE_REQUEST_CODE)
+                    }
+                }
                 "startAppBlocker" -> {
                     val blockedApps = call.argument<List<String>>("blockedApps") ?: emptyList()
                     AppBlockerService.start(this, blockedApps)
@@ -125,6 +147,39 @@ class MainActivity : FlutterActivity() {
                 }
                 else -> result.notImplemented()
             }
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode != SAVE_TEXT_FILE_REQUEST_CODE) {
+            return
+        }
+
+        val result = pendingSaveResult
+        val content = pendingSaveContent
+        pendingSaveResult = null
+        pendingSaveContent = null
+
+        if (result == null) {
+            return
+        }
+
+        val uri = if (resultCode == Activity.RESULT_OK) data?.data else null
+        if (uri == null || content == null) {
+            result.success(null)
+            return
+        }
+
+        try {
+            contentResolver.openOutputStream(uri)?.use { output ->
+                output.write(content)
+                output.flush()
+            } ?: throw IOException("Unable to open output stream")
+            result.success(uri.toString())
+        } catch (e: Exception) {
+            result.error("save_failed", e.message, null)
         }
     }
 

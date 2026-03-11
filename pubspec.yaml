@@ -1,7 +1,7 @@
 name: focustrack
 description: "A cross-platform screen time tracker for desktop & mobile."
 publish_to: 'none'
-version: 1.1.0
+version: 1.1.1
 
 environment:
   sdk: ^3.9.2
@@ -27,6 +27,7 @@ dependencies:
   shelf_router: ^1.1.4
   http: ^1.2.0
   iconsax: ^0.0.8
+  file_picker: ^10.3.10
 
 dev_dependencies:
   flutter_test:
