@@ -16,4 +16,4 @@ if (-not $inno) {
 }
 
 & $inno "installer\FocusTrack.iss"
-Write-Host "Installer built at installer\dist\FocusTrack-Setup-1.1.0.exe"
+Write-Host "Installer built at installer\dist\FocusTrack-Setup-1.1.1.exe"

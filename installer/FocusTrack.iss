@@ -1,5 +1,5 @@
 #define MyAppName "FocusTrack"
-#define MyAppVersion "1.1.0"
+#define MyAppVersion "1.1.1"
 #define MyAppPublisher "FocusTrack"
 #define MyAppExeName "focustrack.exe"
 #define MyAppId "{{2DB8EA54-4A0D-4415-B4FD-365A80333F0F}"
